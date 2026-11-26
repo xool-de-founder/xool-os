@@ -74,7 +74,8 @@ def read_wav16k(path: str) -> np.ndarray:
 
 class Server:
     def __init__(self, voice: str | None = None, whisper: str | None = None, speed: float = 1.05,
-                 pause: float = 0.6, null_audio: bool = False, name: str = "Xool"):
+                 pause: float = 0.6, null_audio: bool = False, name: str = "Xool", language: str = "de"):
+        self.language = language
         self.out = sys.stdout
         sys.stdout = sys.stderr  # nothing but events may reach the real stdout
         self.lock_out = threading.Lock()
@@ -134,7 +135,7 @@ class Server:
             from .stt import make_stt, warmup
 
             with self.stt_lock:
-                self.stt = make_stt(self.whisper_arg)
+                self.stt = make_stt(self.whisper_arg, self.language)
                 warmup(self.stt)
             self.emit("loaded", what="ears", stt=self.stt.name)
         except Exception as e:
@@ -315,7 +316,7 @@ class Server:
                     self.emit("loading", what="ears")
                     from .stt import make_stt
 
-                    self.stt = make_stt(self.whisper_arg)
+                    self.stt = make_stt(self.whisper_arg, self.language)
                 text = self.stt.transcribe(audio)
             if looks_like_hallucination(text):
                 text = ""

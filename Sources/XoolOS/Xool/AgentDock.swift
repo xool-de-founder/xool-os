@@ -85,6 +85,7 @@ struct AgentPill: View {
         case .thinking: return ", thinking"
         case .browsing(let n): return ", working in the browser, \(n) tab\(n == 1 ? "" : "s")"
         case .waiting: return ", waiting for you"
+        case .listening: return ", listening to you"
         }
     }
     @XState private var hovering = false
@@ -114,6 +115,13 @@ struct AgentPill: View {
                 case .waiting:
                     Circle().fill(agent.color.solid).frame(width: 7, height: 7)
                         .overlay(Circle().strokeBorder(Theme.canvas, lineWidth: 1.5).padding(-1.5))
+                case .listening:
+                    Image(systemName: "waveform").font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(Theme.text)
+                        .symbolEffect(.variableColor.iterative, isActive: !Motion.reduced)
+                        .padding(.horizontal, 4).frame(height: 16)
+                        .background(RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous).fill(agent.color.solid.opacity(0.25)))
+                    Text("listening").font(Theme.caption).foregroundStyle(Theme.textMuted)
                 default: EmptyView()
                 }
             }

@@ -49,6 +49,7 @@ struct XoolShell<Content: View>: View {
         }
         .task {
             await models.refresh()
+            VoiceBridge.shared.install()
             XoolUI.shared.applyLaunchRequest()
         }
     }

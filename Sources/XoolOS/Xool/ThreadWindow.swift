@@ -7,6 +7,7 @@ struct ThreadView: View {
     @ObservedObject var store: AgentStore
     @ObservedObject var runtime: ChatRuntime
     @ObservedObject var models: ModelStore
+    @ObservedObject private var voice = VoiceBridge.shared
     let docked: Bool
     @XState private var draft = ""
     @FocusState private var typing: Bool
@@ -25,6 +26,7 @@ struct ThreadView: View {
                     SiteQuestion(ask: ask, agent: agent, thread: thread.id)
                 }
                 slashMenu(agent)
+                voiceNote(thread, agent)
                 composer(thread, agent)
             } else {
                 Spacer()
@@ -41,7 +43,7 @@ struct ThreadView: View {
     private var header: some View {
         HStack(spacing: Theme.Space.s) {
             if let agent {
-                AgentAvatar(color: agent.color, size: 22, thinking: thread.map { runtime.thinking.contains($0.id) } ?? false)
+                AgentAvatar(color: agent.color, size: 22, thinking: thread.map { runtime.thinking.contains($0.id) || runtime.activity[$0.id] == .thinking } ?? false)
                 Text(agent.name).font(Theme.heading).foregroundStyle(Theme.text).lineLimit(1)
                 Text(models.resolve(agent)?.label ?? "No model")
                     .font(Theme.caption).foregroundStyle(Theme.textMuted).lineLimit(1)
@@ -219,14 +221,78 @@ struct ThreadView: View {
                 .overlay(RoundedRectangle(cornerRadius: Theme.Radius.row, style: .continuous)
                     .strokeBorder(typing ? Theme.focus : Theme.line, lineWidth: typing ? 2 : 1))
                 .accessibilityLabel("Message \(agent.name)")
+            micButton(thread, agent)
             if busy {
-                XoolIconButton(symbol: "stop.circle", label: "Stop answering") { runtime.stop(thread.id) }
+                XoolIconButton(symbol: "stop.circle", label: "Stop answering") { runtime.stop(thread.id); voice.interrupt() }
             } else {
                 XoolIconButton(symbol: "arrow.up.circle", label: "Send message") { send(thread) }
             }
         }
         .padding(Theme.Space.s)
         .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+    }
+
+    // MARK: voice
+
+    /// Click to talk, click again when you are done (holding `fn` does the
+    /// same). Right-click: hands-free, where you just talk and can interrupt.
+    private func micButton(_ thread: ChatThread, _ agent: Agent) -> some View {
+        let talking = voice.state == .listening && voice.target == thread.id
+        let symbol = talking ? "mic.fill" : voice.handsFree && voice.target == thread.id ? "waveform.circle" : "mic"
+        return XoolButton(action: { voice.pressed(!(voice.state == .listening)) }) {
+            Image(systemName: symbol)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(talking || voice.handsFree ? agent.color.solid : Theme.textMuted)
+                .frame(width: Theme.target, height: Theme.target)
+        }
+        .contextMenu {
+            Button(voice.handsFree ? "Stop hands-free" : "Talk hands-free") { voice.toggleHandsFree() }
+        }
+        .accessibilityLabel(talking ? "Stop listening" : "Talk to \(agent.name)")
+        .accessibilityHint("Or hold \(voice.key == "fn" ? "the fn key" : "Option Space")")
+        .help(talking ? "Done talking" : "Talk to \(agent.name). Or hold \(voice.key == "fn" ? "fn" : "⌥Space"). Right-click for hands-free")
+    }
+
+    /// What the voice needs the user to know: loading, no microphone, no setup.
+    @ViewBuilder
+    private func voiceNote(_ thread: ChatThread, _ agent: Agent) -> some View {
+        if let note = voice.notice {
+            HStack(spacing: Theme.Space.s) {
+                Image(systemName: "mic.slash").font(.system(size: 11)).foregroundStyle(Theme.textMuted)
+                Text(note.text).font(Theme.small).foregroundStyle(Theme.text).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+                if let url = note.settings {
+                    XoolButton(action: { NSWorkspace.shared.open(url) }) {
+                        Text("Open Settings").font(Theme.label).foregroundStyle(Theme.text).padding(.horizontal, Theme.Space.s)
+                    }
+                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.row, style: .continuous).strokeBorder(Theme.line))
+                }
+                XoolIconButton(symbol: "xmark", label: "Dismiss") { voice.notice = nil }
+            }
+            .padding(.horizontal, Theme.Space.m).padding(.vertical, Theme.Space.xs)
+            .background(Theme.surface)
+            .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+        } else if let loading = voice.loading {
+            HStack(spacing: Theme.Space.s) {
+                ProgressView().controlSize(.mini).scaleEffect(0.7).frame(width: 14, height: 14)
+                Text(loading).font(Theme.small).foregroundStyle(Theme.textMuted)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, Theme.Space.m).padding(.vertical, Theme.Space.xs)
+            .background(Theme.surface)
+            .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+        } else if voice.state != .idle, voice.target == thread.id {
+            HStack(spacing: Theme.Space.s) {
+                Image(systemName: voice.state == .speaking ? "speaker.wave.2" : voice.state == .listening ? "waveform" : "ellipsis")
+                    .font(.system(size: 11)).foregroundStyle(agent.color.solid)
+                Text(voice.state == .listening ? "Listening…" : voice.state == .speaking ? "Speaking. Talk or press a key to interrupt" : "Thinking…")
+                    .font(Theme.small).foregroundStyle(Theme.textMuted)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, Theme.Space.m).padding(.vertical, Theme.Space.xs)
+            .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+            .accessibilityElement(children: .combine)
+        }
     }
 
     private func send(_ thread: ChatThread) {

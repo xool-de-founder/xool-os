@@ -13,6 +13,9 @@ final class ChatRuntime: ObservableObject {
     private var tasks: [UUID: Task<Void, Never>] = [:]
     /// What each running thread is doing, for the pills.
     @Published private(set) var activity: [UUID: AgentActivity] = [:]
+    /// More for a thread's system prompt while an answer is on its way: how to
+    /// answer someone who is listening, and the voice's background notes.
+    var extra: [UUID: String] = [:]
     /// A site an agent asks to work on, by thread: the thread shows the question.
     @Published var asking: [UUID: SitePermission] = [:]
 
@@ -26,6 +29,7 @@ final class ChatRuntime: ObservableObject {
         let mine = AgentStore.shared.threads.filter { $0.agentID == agent }.map(\.id)
         let states = mine.compactMap { activity[$0] ?? (thinking.contains($0) ? .thinking : nil) }
         if states.contains(.waiting) { return .waiting }
+        if states.contains(.listening) { return .listening }
         let tabs = states.reduce(0) { if case .browsing(let n) = $1 { return $0 + n } else { return $0 } }
         if states.contains(where: { if case .browsing = $0 { return true } else { return false } }) { return .browsing(tabs) }
         return states.isEmpty ? .idle : .thinking
@@ -55,7 +59,7 @@ final class ChatRuntime: ObservableObject {
             .dropLast()
             .filter { !$0.text.isEmpty }
             .map { AIMessage(role: $0.role == .user ? .user : .assistant, text: $0.text) }
-        let system = Self.systemPrompt(for: agent)
+        let system = Self.systemPrompt(for: agent) + (extra[threadID].map { "\n\n" + $0 } ?? "")
         // "/name rest": a skill of this agent's, called by hand.
         let skills = SkillStore.shared.skills(for: agent)
         let invoked = SkillStore.invocation(in: text, among: skills)?.skill
@@ -143,6 +147,7 @@ final class ChatRuntime: ObservableObject {
         thinking.remove(id)
         activity[id] = nil
         asking[id] = nil
+        extra[id] = nil
         if quiet {}
         else if let error { fail(id, Self.explain(error, provider: provider)) }
         else {

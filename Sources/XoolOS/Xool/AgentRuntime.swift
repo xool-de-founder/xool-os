@@ -8,6 +8,8 @@ enum AgentActivity: Equatable {
     case browsing(Int)
     /// Asking the user about a site.
     case waiting
+    /// The user is talking to it (push to talk, or hands-free).
+    case listening
 }
 
 /// A question to the user: may this agent work on this site?
@@ -89,7 +91,8 @@ final class AgentRuntime {
             }
         }
 
-        let system = Self.systemPrompt(for: agent, skills: skills, invoked: invoked)
+        var system = Self.systemPrompt(for: agent, skills: skills, invoked: invoked)
+        if let extra = chat.extra[threadID] { system += "\n\n" + extra }
         let specs = AgentTools.specs(skills: skills)
         var turns: [AgentTurn] = history.map { $0.role == .user ? .user($0.text) : .assistant($0.text, []) }
 

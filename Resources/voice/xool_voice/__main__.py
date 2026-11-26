@@ -15,6 +15,7 @@ def main(argv=None) -> int:
     p.add_argument("--null-audio", action="store_true", help="no speaker, no real playback (tests)")
     p.add_argument("--voice")
     p.add_argument("--whisper")
+    p.add_argument("--language", default="de", help="what you speak (Whisper language code)")
     p.add_argument("--speed", type=float, default=1.05)
     p.add_argument("--pause", type=float, default=0.6)
     p.add_argument("--say")
@@ -52,12 +53,12 @@ def main(argv=None) -> int:
         from .server import read_wav16k
         from .stt import make_stt
 
-        print(make_stt(a.whisper).transcribe(read_wav16k(a.transcribe)))
+        print(make_stt(a.whisper, a.language).transcribe(read_wav16k(a.transcribe)))
         return 0
     if a.serve:
         from .server import Server
 
-        Server(a.voice, a.whisper, a.speed, a.pause, a.null_audio).run()
+        Server(a.voice, a.whisper, a.speed, a.pause, a.null_audio, language=a.language).run()
         return 0
     p.print_help()
     return 2

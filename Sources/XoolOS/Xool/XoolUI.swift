@@ -136,6 +136,9 @@ extension XoolUI {
                     FileHandle.standardError.write(Data("stopafter: fired, front=\(String(describing: self?.front))\n".utf8))
                     if let id = self?.front { ChatRuntime.shared.stop(id) }
                 }
+            // Test runs only: a WAV file in place of the microphone, said to the front agent.
+            case "voicewav" where Store.testing:
+                if pieces.count > 1 { VoiceBridge.shared.feed(file: URL(fileURLWithPath: pieces[1])) }
             case "cloud" where Store.testing: ModelRouter.shared.allowCloud = pieces.count > 1 && pieces[1] == "on"
             case "light": NSApp.appearance = NSAppearance(named: .aqua)
             case "dark": NSApp.appearance = NSAppearance(named: .darkAqua)

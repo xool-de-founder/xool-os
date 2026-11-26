@@ -20,6 +20,7 @@
 #  Force a model:                     ... | bash -s -- --model qwen3.6:27b
 #  Don't ask, answer yes:             ... | bash -s -- --yes
 #  Skip the voice:                    ... | bash -s -- --no-voice
+#  Only the voice (no Ollama, no model): ... | bash -s -- --only-voice
 #
 #  Based on scripts/jarvis-mac.sh and scripts/jarvis-stimme.sh of
 #  github.com/Paulito12209/jarvis-on-nod (see THIRD_PARTY_NOTICES.md).
@@ -43,6 +44,7 @@ REPO_URL="${XOOL_REPO_URL:-https://github.com/xool-de-founder/xool-os.git}"
 MODE="install"
 FORCED_MODEL=""
 WITH_VOICE=1
+ONLY_VOICE=0
 ASSUME_YES="${XOOL_YES:-0}"
 TEST_MODE="${XOOL_TEST_MODE:-0}"   # tests only
 
@@ -52,7 +54,8 @@ while [ $# -gt 0 ]; do
     --model) shift; FORCED_MODEL="${1:-}" ;;
     --yes|-y) ASSUME_YES=1 ;;
     --no-voice) WITH_VOICE=0 ;;
-    --help|-h) sed -n '2,29p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --only-voice) ONLY_VOICE=1 ;;
+    --help|-h) sed -n '2,30p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) printf 'Unknown option: %s\n' "$1"; exit 2 ;;
   esac
   shift
@@ -65,6 +68,7 @@ else
   B=""; G=""; Y=""; R=""; C=""; N=""
 fi
 TOTAL=6
+[ "$ONLY_VOICE" = "1" ] && TOTAL=2
 STEP=0
 step()  { STEP=$((STEP+1)); printf '\n%s%s▶ Step %s/%s: %s%s\n' "$B" "$C" "$STEP" "$TOTAL" "$1" "$N"; }
 ok()    { printf '  %s✔%s %s\n' "$G" "$N" "$1"; }
@@ -113,6 +117,8 @@ FREE_GB="$(df -g "$HOME" 2>/dev/null | awk 'NR==2{print $4}')"
 [ -n "${FREE_GB:-}" ] && ok "Free disk space: ${FREE_GB} GB"
 
 # ----- 2. Model --------------------------------------------------------------
+if [ "$ONLY_VOICE" = "1" ]; then MODEL="(voice only)"; fi
+if [ "$ONLY_VOICE" != "1" ]; then
 step "Choose the model"
 if [ -n "$FORCED_MODEL" ]; then
   MODEL="$FORCED_MODEL"; ok "Your choice: $MODEL"
@@ -244,6 +250,8 @@ if server_up && model_present "$MODEL"; then
     printf '%s\n' "$PS_OUT" | sed 's/^/      /'
   fi
 fi
+
+fi  # not only the voice
 
 # ----- 6. Voice --------------------------------------------------------------
 step "The voice (listening and speaking)"

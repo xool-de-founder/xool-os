@@ -203,6 +203,13 @@ struct SearchApp: App {
                     .shortcut("view.reader")
                 Button("Float Video") { browser.toggleFloat() }
                     .shortcut("view.float")
+                Divider()
+                Button("Save Page to Brain") { Command.named("brain.savePage")?.run(browser) }
+                    .shortcut("brain.savePage")
+                    .disabled(!(browser.active?.isWeb ?? false))
+                Button("Show Brain") { XoolUI.shared.toggleBrain() }
+                    .shortcut("brain.open")
+                Divider()
                 // Websites in the side panel, only once they are on
                 // (Settings › General).
                 if browser.prefs.sitesInPanel {

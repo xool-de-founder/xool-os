@@ -28,6 +28,8 @@ enum AddressCommand: Equatable {
     case menu(String)
     /// A Settings page, opened on that page.
     case page(SettingsPanel.Page)
+    /// An entry of the Brain (Xool/Brain), by its id: found from ⌘K.
+    case brain(String)
 
     /// The words, which run on Return when typed whole.
     static let allCases: [AddressCommand] = [
@@ -48,12 +50,13 @@ enum AddressCommand: Equatable {
         case .toggleSidebar: return ["toggle sidebar", "sidebar"]
         case .menu(let id): return [Command.named(id)?.title ?? id]
         case .page(let page): return ["\(page.title) Settings"]
+        case .brain(let id): return [BrainStore.shared.item(id)?.title ?? "Brain entry"]
         }
     }
 
     var title: String {
         switch self {
-        case .menu, .page: return aliases[0]
+        case .menu, .page, .brain: return aliases[0]
         default: return aliases[0].localizedCapitalized
         }
     }
@@ -70,7 +73,7 @@ enum AddressCommand: Equatable {
         case .passwords: return "app.passwords"
         case .toggleSidebar: return "view.sidebar"
         case .menu(let id): return id
-        case .newSpace, .page: return nil
+        case .newSpace, .page, .brain: return nil
         }
     }
 
@@ -99,6 +102,7 @@ enum AddressCommand: Equatable {
         case .passwords: browser.managing = true
         case .toggleSidebar: browser.toggleSidebar()
         case .menu(let id): Command.named(id)?.run(browser)
+        case .brain(let id): BrainStore.shared.show(id)
         case .page(let page):
             browser.settingsPage = page
             browser.tuning = true
@@ -140,7 +144,7 @@ enum AddressCommand: Equatable {
     /// Those the menu greys out without a web page in front.
     private static let needsPage: Set<String> = [
         "file.share", "file.savePage", "file.exportPDF", "file.print", "edit.copyCleanLink", "view.reader",
-        "view.summarize", "view.ask", "tabs.duplicate", "tabs.copyAddress", "tabs.copyMarkdown", "bookmarks.add",
+        "view.summarize", "view.ask", "tabs.duplicate", "tabs.copyAddress", "tabs.copyMarkdown", "bookmarks.add", "brain.savePage",
         "view.style", "view.developerMode",
     ]
     /// More words for a few, the ones other browsers use.

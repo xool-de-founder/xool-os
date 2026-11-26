@@ -250,6 +250,11 @@ struct Command: Identifiable {
         Command("view.sitePanel", "Show Side Panel", .view, nil) { $0.toggleSitePanel() },
         Command("view.dusk", "Darken This Site", .view, KeyCombo("d", shift: true)) { $0.toggleDusk() },
         Command("view.duskPause", "Pause Darkening", .view, KeyCombo("d", shift: true, option: true)) { $0.pauseDusk() },
+        Command("brain.open", "Show Brain", .view, KeyCombo("b", option: true)) { _ in XoolUI.shared.toggleBrain() },
+        Command("brain.savePage", "Save Page to Brain", .view, KeyCombo("s", shift: true, option: true)) { browser in
+            guard let tab = browser.active else { return }
+            BrainStore.shared.savePage(of: tab) { browser.announce($0) }
+        },
         Command("view.summarize", "Summarize Page", .view, nil) { $0.summarizePage() },
         Command("view.ask", "Ask About This Page…", .view, nil) { $0.askAboutPage() },
         // No key until you give one: Arc's ⇧⌘2 is a shifted digit, which

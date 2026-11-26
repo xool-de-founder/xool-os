@@ -2797,6 +2797,15 @@ final class PageView: WKWebView {
             menu.addItem(.separator())
             menu.addItem(item)
         }
+        // Save Page to Brain (Xool/Brain): the page's words, kept and searchable.
+        if configuration.websiteDataStore.isPersistent {
+            let keep = NSMenuItem(title: "Save Page to Brain", action: #selector(savePageToBrain(_:)), keyEquivalent: "")
+            keep.target = self
+            if !menu.items.contains(where: { $0.identifier?.rawValue == "WKMenuItemIdentifierOpenLink" || $0.identifier?.rawValue == "WKMenuItemIdentifierOpenLinkInNewWindow" }) {
+                if menu.items.last?.isSeparatorItem == false { menu.addItem(.separator()) }
+                menu.addItem(keep)
+            }
+        }
         if let item = menu.items.first(where: { $0.identifier?.rawValue == "WKMenuItemIdentifierSearchWeb" }),
            let name = searchName?() {
             webSearch = (item.target, item.action)
@@ -2954,6 +2963,12 @@ final class PageView: WKWebView {
     /// marked, for a second, to be a private one instead (Browser's
     /// createWebViewWith opens it with nothing of this page's).
     private var privateSince: Date?
+
+    @objc private func savePageToBrain(_ item: NSMenuItem) {
+        let browser = Browsers.acting
+        guard let tab = browser.tabs.first(where: { $0.built === self }) else { return }
+        BrainStore.shared.savePage(of: tab) { browser.announce($0) }
+    }
 
     @objc private func openLinkPrivate(_ item: NSMenuItem) {
         guard let action = openLink.action else { return }

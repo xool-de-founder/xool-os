@@ -29,6 +29,7 @@ final class XoolUI: ObservableObject {
     @Published var large = false
     @Published var showAgents = false
     @Published var showTabs = false
+    @Published var showBrain = false
     @Published var showModels = false
     @Published var creating: Agent.ID?
     @Published var showNewAgent = false
@@ -73,8 +74,12 @@ final class XoolUI: ObservableObject {
     /// The sidebar takes room from the page only while it is open.
     var sidebarOpen: Bool { mode == .sidebar && hasThreads && !minimized }
 
-    func toggleAgents() { showAgents.toggle(); if showAgents { showTabs = false } }
-    func toggleTabs() { showTabs.toggle(); if showTabs { showAgents = false } }
+    func toggleAgents() { showAgents.toggle(); if showAgents { showTabs = false; showBrain = false } }
+    func toggleTabs() { showTabs.toggle(); if showTabs { showAgents = false; showBrain = false } }
+    func toggleBrain() {
+        showBrain.toggle()
+        if showBrain { showAgents = false; showTabs = false }
+    }
 
     /// ⌥1–⌥9: the agent at that place in the bar.
     func openAgent(number: Int) {
@@ -104,6 +109,7 @@ extension XoolUI {
             case "agents": showAgents = true
             case "tabs": showTabs = true
             case "models": showModels = true
+            case "brain": showBrain = true
             case "settings":
                 Browsers.frontBrowser.settingsPage = SettingsPanel.Page.named(pieces.count > 1 ? pieces[1] : "models") ?? .models
                 Browsers.frontBrowser.tuning = true

@@ -30,6 +30,10 @@ struct XoolShell<Content: View>: View {
                 if ui.showTabs {
                     TabsOverview(browser: browser, ui: ui)
                 }
+                if ui.showBrain {
+                    BrainView(ui: ui, browser: browser)
+                        .transition(.opacity)
+                }
                 if ui.showAgents {
                     HStack(spacing: 0) {
                         Spacer(minLength: 0)
@@ -42,6 +46,7 @@ struct XoolShell<Content: View>: View {
             .animation(Theme.motion(Theme.morph), value: ui.mode)
             .animation(Theme.motion(Theme.grow), value: ui.showAgents)
             .animation(Theme.motion(Theme.grow), value: ui.showTabs)
+            .animation(Theme.motion(Theme.grow), value: ui.showBrain)
             AgentDock(ui: ui, store: store, models: models, runtime: runtime)
         }
         .sheet(isPresented: $ui.showNewAgent) {

@@ -26,6 +26,7 @@ struct ThreadView: View {
                     SiteQuestion(ask: ask, agent: agent, thread: thread.id)
                 }
                 slashMenu(agent)
+                mentionMenu
                 voiceNote(thread, agent)
                 composer(thread, agent)
             } else {
@@ -168,10 +169,59 @@ struct ThreadView: View {
         }
     }
 
+    // MARK: mentions
+
+    /// The word being typed at the end of the input, if it starts with `@`.
+    private var mentioning: String? {
+        guard let at = draft.lastIndex(of: "@") else { return nil }
+        if at != draft.startIndex, !draft[draft.index(before: at)].isWhitespace { return nil }
+        let word = draft[draft.index(after: at)...]
+        return word.contains("\n") || word.contains("](") ? nil : String(word)
+    }
+
+    /// `@` in the input: entries of the Brain, narrowed as you type; one
+    /// picked is put in the message as a link the agent can read.
+    @ViewBuilder
+    private var mentionMenu: some View {
+        if let typed = mentioning {
+            let found = typed.isEmpty ? Array(BrainStore.shared.items.filter { $0.kind != .bookmark }.prefix(6))
+                : BrainStore.shared.db.titles(matching: typed, limit: 6)
+            VStack(alignment: .leading, spacing: 0) {
+                if found.isEmpty {
+                    Text(BrainStore.shared.items.isEmpty ? "The Brain is empty. Drop files on “Brain” in the sidebar." : "No Brain entry has that in its title.")
+                        .font(Theme.small).foregroundStyle(Theme.textMuted).padding(Theme.Space.s)
+                }
+                ForEach(found) { entry in
+                    XoolButton(action: { mention(entry) }) {
+                        HStack(spacing: Theme.Space.s) {
+                            Image(systemName: entry.kind.symbol).font(.system(size: 11)).foregroundStyle(Theme.textMuted).frame(width: 14)
+                            Text(entry.title).font(Theme.label).foregroundStyle(Theme.text).lineLimit(1)
+                            Text(entry.kind.one).font(Theme.small).foregroundStyle(Theme.textMuted)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, Theme.Space.s)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .accessibilityLabel("Mention \(entry.kind.one) \(entry.title)")
+                }
+            }
+            .padding(Theme.Space.xs)
+            .background(Theme.surface)
+            .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+        }
+    }
+
+    private func mention(_ entry: BrainItem) {
+        guard let at = draft.lastIndex(of: "@") else { return }
+        let name = entry.title.replacingOccurrences(of: "[", with: "(").replacingOccurrences(of: "]", with: ")")
+        draft = String(draft[..<at]) + "[@\(name)](\(entry.address)) "
+        typing = true
+    }
+
     @ViewBuilder
     private func bubble(_ message: ChatMessage, _ agent: Agent) -> some View {
         if message.role == .user {
-            Text(message.text)
+            BrainText(text: message.text)
                 .font(Theme.body).foregroundStyle(Theme.text)
                 .textSelection(.enabled)
                 .padding(.horizontal, Theme.Space.m).padding(.vertical, Theme.Space.s)
@@ -184,7 +234,7 @@ struct ThreadView: View {
                     StepLog(steps: steps, color: agent.color)
                 }
                 if !message.text.isEmpty {
-                    Text(message.text).font(Theme.body).foregroundStyle(Theme.text).textSelection(.enabled)
+                    BrainText(text: message.text).font(Theme.body).foregroundStyle(Theme.text).textSelection(.enabled)
                 } else if message.failed == nil, message.steps?.isEmpty != false {
                     Text("…").font(Theme.body).foregroundStyle(Theme.textMuted)
                 }
@@ -385,6 +435,7 @@ struct StepRow: View {
         case .wait: return "hourglass"
         case .back: return "chevron.backward"
         case .skill: return "wand.and.stars"
+        case .brain: return "brain"
         case .other: return "wrench"
         }
     }
@@ -428,8 +479,9 @@ enum AgentJump {
                 }
             }
         }
-        if let text = step.url, let url = URL(string: text), ["http", "https"].contains(url.scheme ?? "") {
-            Browsers.frontBrowser.open(url, foreground: true)
+        if let text = step.url, let url = URL(string: text) {
+            if let entry = BrainStore.id(from: url) { BrainStore.shared.show(entry) }
+            else if ["http", "https"].contains(url.scheme ?? "") { Browsers.frontBrowser.open(url, foreground: true) }
         }
     }
 }

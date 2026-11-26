@@ -8028,6 +8028,14 @@ final class Browser: NSObject, ObservableObject {
         }
         guard !summoning else {
             offers = openPages(matching: typed)
+            // And what the Brain has by those words (Xool/Brain): a click
+            // shows the entry there.
+            if !typed.trimmingCharacters(in: .whitespaces).isEmpty {
+                for found in BrainStore.shared.db.search(typed, kind: nil, limit: 3) {
+                    guard let entry = BrainStore.shared.item(found.id), let link = URL(string: entry.address) else { continue }
+                    offers.append(Suggestion(key: "brain " + entry.id, title: entry.title, url: link, kind: .command(.brain(entry.id))))
+                }
+            }
             // What Return does with words no open page answers to, as a row of
             // its own after the pages that do: a new tab, so the page ⌘K was
             // pressed over stays as it was (⌘L is the key for changing it).

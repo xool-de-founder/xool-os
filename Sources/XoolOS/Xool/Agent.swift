@@ -32,7 +32,7 @@ struct Agent: Identifiable, Codable, Equatable {
 /// One thing an agent did while answering: "Opens example.com", "Clicks
 /// Next". A step in a tab jumps to that tab when clicked.
 struct AgentStep: Identifiable, Codable, Equatable {
-    enum Kind: String, Codable { case search, open, read, click, type, wait, back, skill, other }
+    enum Kind: String, Codable { case search, open, read, click, type, wait, back, skill, brain, other }
     enum State: String, Codable { case running, done, failed }
     var id = UUID()
     var kind: Kind

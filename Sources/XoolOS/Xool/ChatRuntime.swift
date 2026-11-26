@@ -71,7 +71,7 @@ final class ChatRuntime: ObservableObject {
             guard !Task.isCancelled else { return }
             // Tools unless the small model said it is just a question. A skill
             // called by hand, or a decision that couldn't be made, gets them.
-            let withTools = invoked != nil || !decision.decided || decision.needsTools
+            let withTools = invoked != nil || !decision.decided || decision.needsTools || text.contains("xool-brain://")
             let asked = withTools ? Decision(needsTools: true, preferCloud: decision.preferCloud, decided: decision.decided) : decision
             guard let route = ModelRouter.shared.route(asked, agent: agent) else {
                 self?.fail(threadID, "No model is chosen. Pick one in the bar below, or start Ollama.")

@@ -2,7 +2,7 @@
 
 Ein schneller, nativer macOS-Browser mit KI-Agents (lokal zuerst, Cloud per API-Key optional), Second Brain, Sprachsteuerung mit Duplex-Mechanik und einer Design-Fläche mit Notion-artigen `/`-Blöcken.
 
-Stand: 2026-11-26 · Status: Phasen 0–7 umgesetzt.
+Stand: 2026-11-26 · Status: Phasen 0–7 umgesetzt, Phase 8 (zweites Review) als Nächstes.
 
 ---
 
@@ -332,7 +332,7 @@ Feedback aus dem ersten echten Test (Screenshots hell/dunkel, 2026-11-26). Diese
 
 **Fertig, wenn:** alle Punkte A–G in hell und dunkel per Screenshot belegt sind (Neuer Tab mit Visual, Thread offen, Agents-Panel offen, Tastenkürzel-Popover offen, Medien-Ansicht); Kontraste der Sidebar-Icons gemessen ≥ 4.5:1 (aktiv) bzw. ≥ 3:1 (Icons); Visual pausiert im Hintergrund und respektiert `reduce motion`; Release-Build grün; committet und gepusht.
 
-#### 6.1 Layout-Vertrag (gilt ab Phase 6 für alle Phasen)
+#### 6.1 Layout-Vertrag (gilt für Phase 6–7, ersetzt durch 8.1)
 - Sidebar von oben nach unten: Ampeln + Zurück/Vor/Neu laden · Tabs (Gepinnt, Heute …) · Gruppe „Ressourcen“ (Brain, Lesezeichen, Medien) · Fuß (Einstellungen | Tastatur, Hell/Dunkel). Keine Agents-Liste in der Sidebar.
 - Unten rechts unter dem Inhalt: Agent-Pills + Agents-Knopf, rechtsbündig. Sonst nichts in dieser Zeile.
 - Agents-Übersicht und Threads (als Seitenleiste) erscheinen **rechts**.
@@ -343,6 +343,63 @@ Feedback aus dem ersten echten Test (Screenshots hell/dunkel, 2026-11-26). Diese
 - `web/canvas` (TipTap + Slash-Menü + Canvas-Engine), Host in WKWebView, Speichern im Brain, Agent-Befehle.
 - Einstieg: Canvas-Dokumente erscheinen als eigene Einträge in der Tab-Liste bzw. unter „Ressourcen › Brain“; der Layout-Vertrag 6.1 bleibt unverändert, Design-Tokens aus `Theme.swift`.
 - **Fertig, wenn:** Frame anlegen, Text mit `/` in Blöcke verwandeln, Bild einfügen, speichern, nach Neustart wieder da; Screenshots zeigen, dass Sidebar, untere Agent-Zeile und Eingabefeld exakt wie nach Phase 6 aussehen.
+
+### Phase 8 – Zweites Review: Logo, Jarvis-Hierarchie, Panel aus der Inhaltsfläche
+
+Feedback aus dem Test nach Phase 7 (2026-11-26). Referenzbilder: `docs/review/p8-*`. Diese Phase **ändert den Layout-Vertrag** (vom Nutzer so gewünscht). Die neue Fassung steht unter 8.1 und ersetzt 6.1.
+
+**A. Neues Xool-Zeichen (ersetzt das „Λ“)**
+- Form (siehe `p8-logo-skizze.png`): ein abgerundetes Quadrat, aufgeteilt in **vier abgerundete Dreiecke** (oben, rechts, unten, links). Die Grundseiten liegen an den Außenkanten, die Spitzen zeigen zur Mitte. Die **Zwischenräume bilden ein X**. Alle Ecken stark gerundet, die Spitzen weich.
+- Dreiecke: hellsilber/grau, leicht weichgezeichnet (feiner innerer Verlauf, minimaler Blur am Rand), matt-metallisch, kein harter Glanz.
+- **Hinter den Dreiecken, sichtbar nur im X-Zwischenraum:** ein Liquid-Glass-Hintergrund, also ein lebendiger, sanft vibrierender Verlauf mit Welle. Er wirkt wie Licht hinter Glas und hat einen hellen Lichtsaum an den Kanten der Dreiecke (siehe `p8-liquid-glass-kante.png`). **Radiale Deckkraft:** 100 % in der Mitte, zu den vier Ausgängen des X hin auf 0 %.
+- Technik: Core Animation (CAShapeLayer-Maske für die Dreiecke, CAGradientLayer/CAEmitter oder ein kleiner Metal-Shader für die Glas-Welle). Ruhig: Welle mit ≤ 0.3 Hz, Pause im Hintergrund, `reduce motion` = Standbild. Hell- und Dunkel-Variante.
+- Das Zeichen ersetzt das „Λ“ überall: Neuer Tab (die Warp-Sternschnuppen bleiben dahinter), App-Icon (`Icon/`), Jarvis-Avatar (siehe C) und About.
+
+**B. Sidebar-Feinschliff**
+- Gruppe „Resources“ heißt jetzt **„Sources“**.
+- Der Gruppentitel ist **ruhiger** als seine Einträge: 11 pt, Gewicht 550, Farbe `text-muted` mit 70 % Deckkraft. Brain, Bookmarks und Media bleiben 13 pt in `text-muted` (aktiv `text`). „Settings“ bleibt, wie es ist.
+- **Abstand** zwischen dem letzten Eintrag (Media) und der Settings-Zeile: 20 pt (zwischen 16 und 24), damit der Fuß als eigener Bereich erkennbar ist.
+
+**C. Jarvis als Haupt-Agent, Hierarchie**
+- Es gibt immer einen **Haupt-Agent „Jarvis“** (nicht löschbar, umbenennbar). Farbe: „Jarvis-Silber“, also der Liquid-Glass-Look des neuen Zeichens. Sein Avatar ist das animierte Zeichen in klein, nicht ein Blob.
+- Jarvis hat **drei Assistenten** („rechte Hände“, frei wählbar aus den vorhandenen Agents, Standard: die ersten drei). Alle übrigen sind **weitere Agents**.
+- Jarvis delegiert: AgentRuntime bekommt ein Tool `delegate(agent, task)`, mit dem Jarvis Aufgaben an einen Assistenten oder Agent gibt. Der Schritt erscheint im Protokoll und öffnet auf Wunsch dessen Thread.
+- **Agents-Panel (rechts), neu gegliedert:**
+  1. Oben **Jarvis' „Büro“**: als Einziger in einem eigenen Container (`raised`-Fläche, Radius 12). Darin großes animiertes Zeichen, Name, letzte Nachricht und eine Zeile „Mit Jarvis sprechen“ (Diktat-Knopf + Eingabe).
+  2. Darunter die **drei Assistenten** groß nebeneinander (Blob-Avatar, Name).
+  3. Darunter die **Liste der weiteren Agents** (Blob, Name, letzte Nachricht).
+  Keine Profilzeile.
+
+**D. Untere Agent-Zeile**
+- Rechtsbündig von rechts nach links: `[Agents]` · **Jarvis** · Assistent 1 · Assistent 2 · Assistent 3 · **Mehr-Chip** · `+`.
+- **Mehr-Chip** (z. B. „+4“ bzw. `ellipsis` mit Zahl, gleiche Pill-Form, neutral grau): Klick öffnet ein Popover nach oben mit der Liste der weiteren Agents (Blob, Name). Klick auf einen öffnet seinen Thread. Ohne weitere Agents ist der Chip ausgeblendet.
+
+**E. Panel wächst aus der Inhaltsfläche (ohne Trennlinie)**
+- Die senkrechte Trennlinie zwischen Inhalt und rechtem Panel entfällt (`p8-panel-ohne-trennlinie.png`, rot).
+- Inhalt und Panel liegen in **einer gemeinsamen abgerundeten Inhaltskarte** (grüne Markierung). Beim Öffnen wächst die Karte nach rechts und das Panel erscheint im Hintergrund der Karte, rechts neben der Seite. Abgegrenzt wird es nur durch eine minimal andere Fläche (`surface` vs. `canvas`-nahe Tönung) und Abstand, nicht durch eine Linie. Die untere Agent-Zeile bleibt unter der Karte. Der Agents-Knopf liegt bündig mit der rechten Kartenkante.
+- Gilt genauso für den Thread als Seitenleiste.
+
+**F. Animation: Agents-Knopf → Panel**
+- Klick auf „Agents“: Das Panel entsteht aus der unteren Zeile. Die Pills (Jarvis, Assistenten) **fliegen in das Panel und steigen an ihre Plätze** (Jarvis ins Büro, Assistenten in die Dreierreihe). Gleichzeitig wächst die Karte nach rechts. Matched-Geometry-Übergang, ca. 320 ms, ease-out, leichte Staffelung (30 ms pro Pill). Schließen spielt das Ganze rückwärts.
+- `reduce motion`: einfaches Überblenden ohne Flug.
+
+**G. Kürzel und Sprache auslösen**
+- **`⌘T` öffnet zuverlässig einen Neuen Tab** (mit Fokus im Eingabefeld). Prüfen, ob ein Agent-, Canvas- oder Brain-Kürzel `⌘T` überlagert, und das beheben.
+- **Sprache direkt auslösen, nativ.** Vorschlag, alle drei umsetzen:
+  1. **Globales Kürzel** (Standard `⌥⌘J`, einstellbar über `HotKey.swift`, funktioniert auch, wenn Xool im Hintergrund ist): startet sofort Zuhören bei Jarvis. Halten = Push-to-Talk, kurz drücken = bis Stille.
+  2. **Menüleisten-Symbol** (NSStatusItem mit dem neuen Zeichen): Klick startet Zuhören, das Symbol pulsiert dabei. Rechtsklick öffnet Menü (Letzte Threads, Xool öffnen, Stimme aus).
+  3. **App Intent „Mit Jarvis sprechen“** (AppIntents-Framework): erscheint in Kurzbefehlen und Spotlight, lässt sich auf die Action-Taste, per Siri oder als Tastaturkurzbefehl in Systemeinstellungen legen.
+  In der App selbst bleibt der Wellenform-Knopf im Eingabefeld. Zusätzlich startet ein Klick auf Jarvis' Pill mit gedrückter `⌥`-Taste sofort das Zuhören.
+
+**Fertig, wenn:** neues Zeichen im Neuen Tab, Agents-Panel und Menüleiste in hell und dunkel per Screenshot belegt; Animation Agents-Knopf → Panel als kurze Bildschirmaufnahme oder Bildfolge (`docs/shots/p8-*`); `⌘T` öffnet einen Tab; globales Kürzel und Menüleisten-Symbol starten das Zuhören (mit WAV-Eingabe testbar); App Intent erscheint in Kurzbefehlen; Release-Build grün; committet und gepusht.
+
+#### 8.1 Layout-Vertrag (ersetzt 6.1, gilt ab Phase 8)
+- Sidebar von oben nach unten: Ampeln + Zurück/Vor/Neu laden · Tabs · Gruppe „Sources“ (Brain, Bookmarks, Media) · 20 pt Abstand · Fuß (Settings | Tastatur, Hell/Dunkel). Keine Agents-Liste in der Sidebar.
+- Inhalt und rechte Panels (Agents-Übersicht, Thread als Seitenleiste) teilen sich **eine** abgerundete Inhaltskarte, ohne Trennlinie.
+- Unter der Karte, rechtsbündig: `+` · Mehr-Chip · Assistenten 3–1 · Jarvis · Agents-Knopf (bündig mit der Kartenkante). Sonst nichts in dieser Zeile.
+- Agents-Panel: Jarvis-Büro oben, drei Assistenten, Liste weiterer Agents.
+- Modell-Wahl lebt im Eingabefeld und im Thread-Kopf.
+- Neue Funktionen bekommen einen Eintrag in der Sidebar und öffnen im Inhaltsbereich. Sie ändern diese Struktur nicht. Abweichungen nur nach Rückfrage.
 
 ---
 

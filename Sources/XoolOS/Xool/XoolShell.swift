@@ -15,48 +15,72 @@ struct XoolShell<Content: View>: View {
         self.content = content()
     }
 
+    @ObservedObject private var flight = PanelFlight.shared
+
+    private var panelsOpen: Bool { ui.showAgents || ui.sidebarOpen }
+    private var growth: Animation? { Theme.motion(.easeOut(duration: PanelFlight.duration)) }
+
     var body: some View {
-        // The window runs to the bottom (the column too); the agent row
-        // sits under the page only, bottom right (docs/PLAN.md 6.1). The
-        // page leaves it its room (ContentView: AgentDock.height).
-        HStack(spacing: 0) {
-            ZStack(alignment: .bottomTrailing) {
-                content
-                if ui.mode == .floating, ui.hasThreads, !ui.minimized {
-                    FloatingThread(ui: ui, store: store, runtime: runtime, models: models)
-                        .padding(.bottom, AgentDock.height)
+        // The window runs to the bottom (the column too). Page and the right
+        // panels are one card (docs/PLAN.md 8, E): the card's ground lies
+        // behind them, the page card sits on its left, the panels' content on
+        // the rest. The agent row is under the card, flush with its right
+        // edge, and leaves the page its room (ContentView: AgentDock.height).
+        ZStack(alignment: .bottomTrailing) {
+            RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous)
+                .fill(Theme.surface)
+                .padding(.leading, ui.page.leading).padding(.top, ui.page.top)
+                .padding(.bottom, AgentDock.height).padding(.trailing, Metrics.cardGap)
+                .opacity(panelsOpen ? 1 : 0)
+                .allowsHitTesting(false)
+            HStack(spacing: 0) {
+                ZStack(alignment: .bottomTrailing) {
+                    content
+                    if ui.mode == .floating, ui.hasThreads, !ui.minimized {
+                        FloatingThread(ui: ui, store: store, runtime: runtime, models: models)
+                            .padding(.bottom, AgentDock.height)
+                    }
+                    // The views that open in the content area lie exactly on the
+                    // page's card: the column and the agent row stay in reach.
+                    if ui.showTabs {
+                        TabsOverview(browser: browser, ui: ui)
+                            .modifier(PageFrame(insets: ui.page))
+                    }
+                    if ui.showBrain {
+                        BrainView(ui: ui, browser: browser)
+                            .modifier(PageFrame(insets: ui.page))
+                            .transition(.opacity)
+                    }
+                    if ui.showMedia {
+                        MediaView(ui: ui, browser: browser)
+                            .modifier(PageFrame(insets: ui.page))
+                            .transition(.opacity)
+                    }
                 }
-                // The views that open in the content area lie exactly on the
-                // page's card: the column and the agent row stay in reach.
-                if ui.showTabs {
-                    TabsOverview(browser: browser, ui: ui)
-                        .modifier(PageFrame(insets: ui.page))
+                .overlay { CardJoin(insets: ui.page).opacity(panelsOpen ? 1 : 0) }
+                PanelColumn(open: ui.showAgents, width: AgentsOverview.width, top: ui.page.top) {
+                    AgentsOverview(ui: ui, store: store, models: models, runtime: runtime, flight: flight)
                 }
-                if ui.showBrain {
-                    BrainView(ui: ui, browser: browser)
-                        .modifier(PageFrame(insets: ui.page))
-                        .transition(.opacity)
+                PanelColumn(open: ui.sidebarOpen, width: ui.sidebarWidth, top: ui.page.top) {
+                    ThreadSidebar(ui: ui, store: store, runtime: runtime, models: models)
                 }
-                if ui.showMedia {
-                    MediaView(ui: ui, browser: browser)
-                        .modifier(PageFrame(insets: ui.page))
-                        .transition(.opacity)
-                }
-                AgentDock(ui: ui, store: store, models: models, runtime: runtime)
             }
-            if ui.showAgents {
-                AgentsOverview(ui: ui, store: store, models: models, runtime: runtime)
-            }
-            if ui.sidebarOpen {
-                ThreadSidebar(ui: ui, store: store, runtime: runtime, models: models)
-            }
+            AgentDock(ui: ui, store: store, models: models, runtime: runtime, flight: flight)
+            FlightLayer(flight: flight, store: store)
         }
+        .coordinateSpace(name: PanelFlight.space)
+        .onPreferenceChange(FlightFrames.self) { new in
+            MainActor.assumeIsolated { flight.frames.merge(new) { _, fresh in fresh } }
+        }
+        .onAppear { flight.sync(open: ui.showAgents) }
+        .onChange(of: ui.showAgents) { _, open in flight.set(open: open) }
         // Under the title bar's band, as the window's own layers are.
         .ignoresSafeArea(.container, edges: .top)
         .animation(Theme.motion(Theme.grow), value: ui.hasThreads)
         .animation(Theme.motion(Theme.grow), value: ui.minimized)
         .animation(Theme.motion(Theme.morph), value: ui.mode)
-        .animation(Theme.motion(Theme.grow), value: ui.showAgents)
+        .animation(growth, value: ui.showAgents)
+        .animation(growth, value: ui.sidebarOpen)
         .animation(Theme.motion(Theme.grow), value: ui.showTabs)
         .animation(Theme.motion(Theme.grow), value: ui.showBrain)
         .animation(Theme.motion(Theme.grow), value: ui.showMedia)

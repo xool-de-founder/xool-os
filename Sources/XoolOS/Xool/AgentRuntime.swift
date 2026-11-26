@@ -97,8 +97,12 @@ final class AgentRuntime {
         }
 
         var system = Self.systemPrompt(for: agent, skills: skills, invoked: invoked)
+        if agent.isMain {
+            let names = (store.assistants.map { "\($0.name) (assistant)" } + store.further.map(\.name)).joined(separator: ", ")
+            system += "\n\nYou can hand jobs to these agents with the delegate tool: " + (names.isEmpty ? "none yet" : names) + "."
+        }
         if let extra = chat.extra[threadID] { system += "\n\n" + extra }
-        let specs = AgentTools.specs(skills: skills)
+        let specs = AgentTools.specs(skills: skills, delegates: agent.isMain ? store.assistants + store.further : [])
         var turns: [AgentTurn] = history.map { $0.role == .user ? .user($0.text) : .assistant($0.text, []) }
 
         for _ in 0..<Self.rounds {
@@ -140,6 +144,7 @@ final class AgentRuntime {
                     thread.messages[last].steps?[at].state = outcome.failed ? .failed : .done
                     thread.messages[last].steps?[at].tab = outcome.tab
                     thread.messages[last].steps?[at].url = outcome.url
+                    thread.messages[last].steps?[at].thread = outcome.thread
                     if outcome.failed { thread.messages[last].steps?[at].note = String(outcome.text.prefix(160)) }
                 }
                 turns.append(.result(call, String(outcome.text.prefix(14_000))))

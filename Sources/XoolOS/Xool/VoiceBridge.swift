@@ -112,6 +112,12 @@ final class VoiceBridge: ObservableObject {
     /// The thread to talk in: the one in front, else the agent used last.
     private func pickThread() -> UUID? {
         let ui = XoolUI.shared, store = AgentStore.shared
+        // Jarvis, called by his key, the menu bar, the App Intent or ⌥-click.
+        if forcedJarvis {
+            forcedJarvis = false
+            ui.openAgent(store.jarvis.id)
+            return ui.front
+        }
         if let front = ui.front, store.thread(front) != nil, !ui.minimized { return front }
         guard let agent = store.byActivity.first else {
             notice = VoiceNotice(text: "Make an agent first (+ in the bar), then talk to it.")
@@ -196,6 +202,40 @@ final class VoiceBridge: ObservableObject {
         escape = nil
     }
 
+    // MARK: Jarvis' own entries (docs/PLAN.md 8, G)
+
+    private var forcedJarvis = false
+    /// Listening stays open after a short press, until the next one.
+    @Published private(set) var latched = false
+    private var jarvisDownAt = Date.distantPast
+
+    /// The global key ⌥⌘J: held = push to talk, pressed briefly = listening
+    /// until you press it again.
+    func jarvisKey(down: Bool) {
+        if down {
+            if latched { latched = false; pressed(false); return }
+            jarvisDownAt = Date()
+            forcedJarvis = true
+            pressed(true)
+            if !holding { forcedJarvis = false }
+        } else if holding, !latched {
+            if Date().timeIntervalSince(jarvisDownAt) < 0.4 { latched = true } else { pressed(false) }
+        }
+    }
+
+    /// Listen to Jarvis now, as a click does (menu bar, App Intent, ⌥-click on
+    /// his pill); a second call ends it.
+    func listenToJarvis() {
+        if latched || holding { latched = false; pressed(false); return }
+        latched = true
+        forcedJarvis = true
+        pressed(true)
+        if !holding { forcedJarvis = false; latched = false }
+    }
+
+    /// Whether the voice is taking in what you say (the menu bar pulses).
+    var listeningNow: Bool { state == .listening || holding }
+
     // MARK: push to talk
 
     /// The key went down or up.
@@ -217,6 +257,7 @@ final class VoiceBridge: ObservableObject {
         } else {
             guard holding else { return }
             holding = false
+            latched = false
             guard state == .listening, let engine else { return }
             state = .thinking
             if let target { ChatRuntime.shared.setActivity(target, .thinking) }

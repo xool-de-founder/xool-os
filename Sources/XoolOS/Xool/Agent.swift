@@ -23,8 +23,13 @@ struct Agent: Identifiable, Codable, Equatable {
     var skills: [String]?
     var created = Date()
     var lastActive = Date()
+    /// Jarvis, the one main agent (docs/PLAN.md 8, C): never deleted, may be renamed.
+    var main: Bool?
+    /// Jarvis's three assistants; nil takes the first three other agents.
+    var assistantIDs: [UUID]?
 
     var accent: Color { color.solid }
+    var isMain: Bool { main == true }
 
     static let starter: [Agent] = []
 }
@@ -32,7 +37,7 @@ struct Agent: Identifiable, Codable, Equatable {
 /// One thing an agent did while answering: "Opens example.com", "Clicks
 /// Next". A step in a tab jumps to that tab when clicked.
 struct AgentStep: Identifiable, Codable, Equatable {
-    enum Kind: String, Codable { case search, open, read, click, type, wait, back, skill, brain, other }
+    enum Kind: String, Codable { case search, open, read, click, type, wait, back, skill, brain, delegate, other }
     enum State: String, Codable { case running, done, failed }
     var id = UUID()
     var kind: Kind
@@ -43,6 +48,8 @@ struct AgentStep: Identifiable, Codable, Equatable {
     var url: String?
     /// Why it failed, or what came of it.
     var note: String?
+    /// For a delegation: the thread the other agent works in.
+    var thread: UUID?
 }
 
 struct ChatMessage: Identifiable, Codable, Equatable {
@@ -90,6 +97,53 @@ final class AgentStore: ObservableObject {
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         agents = Self.read([Agent].self, from: agentsFile) ?? []
         threads = Self.read([ChatThread].self, from: threadsFile) ?? []
+        ensureJarvis()
+    }
+
+    // MARK: Jarvis and his assistants (docs/PLAN.md 8, C)
+
+    static let jarvisInstructions = """
+    You are Jarvis, the user's chief agent. You answer directly when you can. For a job that fits one of your \
+    assistants or another agent better, hand it over with the delegate tool (agent name, then a complete task: \
+    they know nothing of this conversation), then use what they report back in your answer.
+    """
+
+    /// There is always exactly one main agent, first in the list.
+    private func ensureJarvis() {
+        guard !agents.contains(where: \.isMain) else { return }
+        var jarvis = Agent(name: "Jarvis", color: .silver, instructions: Self.jarvisInstructions, model: nil)
+        jarvis.main = true
+        agents.insert(jarvis, at: 0)
+        write(agents, to: agentsFile)
+    }
+
+    var jarvis: Agent { agents.first(where: \.isMain) ?? agents[0] }
+
+    /// His three: the ones chosen, else the first three other agents.
+    var assistants: [Agent] {
+        let others = agents.filter { !$0.isMain }
+        if let ids = jarvis.assistantIDs {
+            return ids.compactMap { id in others.first { $0.id == id } }.prefix(3).map { $0 }
+        }
+        return Array(others.prefix(3))
+    }
+
+    /// Everyone else.
+    var further: [Agent] {
+        let mine = Set(assistants.map(\.id))
+        return agents.filter { !$0.isMain && !mine.contains($0.id) }
+    }
+
+    func isAssistant(_ id: UUID) -> Bool { assistants.contains { $0.id == id } }
+
+    /// Make an agent one of the three (the oldest steps out when full), or not.
+    func setAssistant(_ id: UUID, _ on: Bool) {
+        var ids = assistants.map(\.id)
+        ids.removeAll { $0 == id }
+        if on { ids.append(id); if ids.count > 3 { ids.removeFirst(ids.count - 3) } }
+        var boss = jarvis
+        boss.assistantIDs = ids
+        update(boss)
     }
 
     private static func read<T: Decodable>(_ type: T.Type, from url: URL) -> T? {
@@ -145,6 +199,7 @@ final class AgentStore: ObservableObject {
     }
 
     func remove(_ id: UUID) {
+        guard agent(id)?.isMain != true else { return }
         agents.removeAll { $0.id == id }
         threads.removeAll { $0.agentID == id }
         scheduleSave()
@@ -167,7 +222,7 @@ final class AgentStore: ObservableObject {
     /// Colours not used yet come first, so each new agent looks different.
     func nextColor() -> AgentColor {
         let used = Set(agents.map(\.color))
-        return AgentColor.allCases.first { !used.contains($0) } ?? AgentColor.allCases[agents.count % AgentColor.allCases.count]
+        return AgentColor.choosable.first { !used.contains($0) } ?? AgentColor.choosable[agents.count % AgentColor.choosable.count]
     }
 
     // MARK: threads

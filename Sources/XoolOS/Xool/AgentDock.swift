@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// The row under the page, bottom right and nothing else (docs/PLAN.md 6.1):
-/// `… [Chief] [Mktg] [Inbox] [Launch Bot] [Agents]|`. The Agents button is
-/// flush with the page's right edge, the first agent right beside it, the
-/// others lining up to its left, `+` at the far left of the pills.
+/// The row under the card, bottom right and nothing else (docs/PLAN.md 8.1):
+/// `+ · More · Assistant 3 · 2 · 1 · Jarvis · Agents`, flush right: the Agents
+/// button on the card's right edge, Jarvis next to it, his assistants to its
+/// left, the chip with the other agents, `+` at the far left. While the
+/// overview is open, Jarvis and the assistants are in the panel, not here.
 struct AgentDock: View {
     /// The row's height; the page leaves this much under it.
     static let height: CGFloat = 40
@@ -11,42 +12,24 @@ struct AgentDock: View {
     @ObservedObject var store: AgentStore
     @ObservedObject var models: ModelStore
     @ObservedObject var runtime: ChatRuntime
-    @XState private var dragging: UUID?
-    private static let visibleMax = 7
+    @ObservedObject var flight: PanelFlight
+    @XState private var moreOpen = false
 
     var body: some View {
-        let pinned = store.agents.filter(\.pinned)
-        let shown = Array(pinned.prefix(Self.visibleMax))
+        let jarvis = store.jarvis
+        let assistants = store.assistants
+        let order = [jarvis] + assistants
         HStack(spacing: Theme.Space.xs) {
-            if pinned.count > Self.visibleMax {
-                Menu {
-                    ForEach(pinned.dropFirst(Self.visibleMax)) { agent in
-                        Button(agent.name) { ui.openAgent(agent.id) }
-                    }
-                } label: {
-                    Image(systemName: "ellipsis").foregroundStyle(Theme.textMuted)
-                        .frame(width: Theme.target, height: Theme.target)
-                }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .fixedSize()
-                .accessibilityLabel("More agents")
-            }
             XoolIconButton(symbol: "plus", label: "New agent") {
                 ui.editing = nil
                 ui.showNewAgent = true
             }
-            // The first agent sits next to the button; the rest to its left.
-            ForEach(Array(shown.reversed())) { agent in
-                AgentPill(agent: agent, ui: ui, store: store, state: runtime.state(agent: agent.id),
-                          number: (store.agents.firstIndex(of: agent) ?? 0) + 1)
-                    .onDrag { dragging = agent.id; return NSItemProvider(object: agent.id.uuidString as NSString) }
-                    .onDrop(of: [.text], isTargeted: nil) { _ in
-                        if let dragging { store.move(dragging, before: agent.id) }
-                        dragging = nil
-                        return true
-                    }
+            if !store.further.isEmpty { moreChip(store.further) }
+            // Jarvis sits next to the button; his assistants to his left.
+            ForEach(Array(assistants.reversed())) { agent in
+                pill(agent, number: (order.firstIndex(of: agent) ?? 0) + 1)
             }
+            pill(jarvis, number: 1)
             XoolButton(action: { ui.toggleAgents() }) {
                 HStack(spacing: 6) {
                     Image(systemName: "square.grid.2x2").font(.system(size: 11, weight: .medium))
@@ -66,9 +49,50 @@ struct AgentDock: View {
                 }
             }
         }
-        // Flush right, as far from the edge as the page's card is.
+        // Flush right, as far from the edge as the card is.
         .padding(.trailing, Metrics.cardGap)
         .frame(height: Self.height)
+    }
+
+    private func pill(_ agent: Agent, number: Int) -> some View {
+        AgentPill(agent: agent, ui: ui, store: store, state: runtime.state(agent: agent.id), number: number)
+            // In the panel while it is open, and while the avatars fly.
+            .opacity(flight.dockHidden ? 0 : 1)
+            .allowsHitTesting(!flight.dockHidden)
+            .animation(flight.dockHidden ? nil : Theme.motion(Theme.hoverTime), value: flight.dockHidden)
+    }
+
+    /// "+4": the agents that are neither Jarvis nor his assistants.
+    private func moreChip(_ agents: [Agent]) -> some View {
+        XoolButton(action: { moreOpen.toggle() }) {
+            HStack(spacing: 4) {
+                Image(systemName: "ellipsis").font(.system(size: 11, weight: .medium))
+                Text("\(agents.count)").font(Theme.font(Theme.Size.caption, Theme.Weight.label)).monospacedDigit()
+            }
+            .foregroundStyle(moreOpen ? Theme.text : Theme.textMuted)
+            .padding(.horizontal, 8)
+            .frame(height: Theme.target)
+            .background(RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous).fill(Theme.raised))
+        }
+        .accessibilityLabel("More agents, \(agents.count)")
+        .help("More agents")
+        .popover(isPresented: $moreOpen, arrowEdge: .top) {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(agents) { agent in
+                    XoolButton(action: { moreOpen = false; ui.openAgent(agent.id) }) {
+                        HStack(spacing: Theme.Space.s) {
+                            AgentAvatar(color: agent.color, size: 20, thinking: runtime.isThinking(agent: agent.id))
+                            Text(agent.name).font(Theme.body).foregroundStyle(Theme.text).lineLimit(1)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, Theme.Space.s).frame(height: 30)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .accessibilityLabel(agent.name)
+                }
+            }
+            .padding(6).frame(width: 220)
+        }
     }
 }
 
@@ -98,9 +122,14 @@ struct AgentPill: View {
     }
 
     var body: some View {
-        Button { ui.openAgent(agent.id) } label: {
+        Button {
+            // ⌥-click on Jarvis: straight to listening (docs/PLAN.md 8, G).
+            if agent.isMain, NSEvent.modifierFlags.contains(.option) { VoiceBridge.shared.listenToJarvis() }
+            else { ui.openAgent(agent.id) }
+        } label: {
             HStack(spacing: 6) {
                 AgentAvatar(color: agent.color, size: 18, thinking: thinking)
+                    .reportsFrame("dock.\(agent.id)")
                 Text(agent.name)
                     .font(Theme.font(Theme.Size.small, Theme.Weight.label))
                     .foregroundStyle(Theme.text)
@@ -140,7 +169,7 @@ struct AgentPill: View {
         .onHover { hovering = $0 }
         .xoolFocus(radius: Theme.Radius.chip) { ui.openAgent(agent.id) }
         .accessibilityLabel("\(agent.name), agent \(number)\(stateText)")
-        .help("\(agent.name) · ⌥\(number)")
+        .help(agent.isMain ? "\(agent.name) · ⌥\(number) · ⌥-click to talk" : "\(agent.name) · ⌥\(number)")
         .contextMenu {
             Button("New thread") { ui.openAgent(agent.id, fresh: true) }
             let recent = store.threads(of: agent.id).prefix(5)
@@ -150,7 +179,11 @@ struct AgentPill: View {
                 }
             }
             Button("Edit agent…") { ui.editing = agent; ui.showNewAgent = true }
-            Button("Remove from bar") { store.setPinned(agent.id, false) }
+            if agent.isMain {
+                Button("Talk to Jarvis") { VoiceBridge.shared.listenToJarvis() }
+            } else {
+                Button("Remove from assistants") { store.setAssistant(agent.id, false) }
+            }
         }
     }
 }

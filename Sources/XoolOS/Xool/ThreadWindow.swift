@@ -380,7 +380,9 @@ struct ThreadSidebar: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            Theme.line.frame(width: 1)
+            // No hairline: the panel is part of the page's card. The edge is
+            // still a handle, a few points wide, to drag the width.
+            Color.clear.frame(width: 6)
                 .overlay(
                     Color.clear.frame(width: 8).contentShape(Rectangle())
                         .onHover { inside in if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() } }
@@ -430,11 +432,12 @@ struct StepRow: View {
         case .back: return "chevron.backward"
         case .skill: return "wand.and.stars"
         case .brain: return "brain"
+        case .delegate: return "arrow.turn.up.right"
         case .other: return "wrench"
         }
     }
 
-    private var jumps: Bool { step.tab != nil || step.url != nil }
+    private var jumps: Bool { step.tab != nil || step.url != nil || step.thread != nil }
 
     var body: some View {
         XoolButton(radius: Theme.Radius.chip, action: { AgentJump.go(step) }) {
@@ -464,6 +467,7 @@ struct StepRow: View {
 @MainActor
 enum AgentJump {
     static func go(_ step: AgentStep) {
+        if let thread = step.thread, XoolUI.shared.hasThread(thread) { XoolUI.shared.openThread(thread); return }
         if let id = step.tab {
             for browser in Browsers.all {
                 if let tab = browser.tabs.first(where: { $0.id == id }) {

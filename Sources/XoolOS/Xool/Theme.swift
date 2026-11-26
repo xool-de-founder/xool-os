@@ -115,6 +115,10 @@ enum Theme {
 
 enum AgentColor: String, CaseIterable, Codable, Identifiable {
     case green, orange, blue, violet, teal, pink
+    /// Jarvis-silver: only the main agent has it (its avatar is the mark).
+    case silver
+
+    static var choosable: [AgentColor] { allCases.filter { $0 != .silver } }
 
     var id: String { rawValue }
 
@@ -126,6 +130,7 @@ enum AgentColor: String, CaseIterable, Codable, Identifiable {
         case .violet: return 0x8B6CEB
         case .teal: return 0x6FB8A6
         case .pink: return 0xD9719A
+        case .silver: return 0xC3C7D2
         }
     }
 
@@ -137,6 +142,7 @@ enum AgentColor: String, CaseIterable, Codable, Identifiable {
         case .violet: return "Violet"
         case .teal: return "Teal"
         case .pink: return "Pink"
+        case .silver: return "Silver"
         }
     }
 

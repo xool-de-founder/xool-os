@@ -8,6 +8,15 @@ struct AgentAvatar: View {
     var thinking = false
 
     var body: some View {
+        // Jarvis: the animated mark instead of a blob (docs/PLAN.md 8, C).
+        if color == .silver {
+            XoolMark(size: size, animated: size >= 16).frame(width: size, height: size).accessibilityHidden(true)
+        } else {
+            blob
+        }
+    }
+
+    private var blob: some View {
         ZStack {
             RoundedRectangle(cornerRadius: size * 0.42, style: .continuous)
                 .fill(color.solid)

@@ -57,6 +57,8 @@ final class XoolUI: ObservableObject {
         openThread(thread.id)
     }
 
+    func hasThread(_ id: UUID) -> Bool { AgentStore.shared.thread(id) != nil }
+
     func openThread(_ id: UUID) {
         if !open.contains(id) { open.append(id) }
         front = id
@@ -99,9 +101,11 @@ final class XoolUI: ObservableObject {
 
     /// ⌥1–⌥9: the agent at that place in the bar.
     func openAgent(number: Int) {
-        let pinned = AgentStore.shared.agents
-        guard number >= 1, number <= pinned.count else { return }
-        openAgent(pinned[number - 1].id)
+        // Jarvis first, then his assistants, then the rest.
+        let store = AgentStore.shared
+        let order = [store.jarvis] + store.assistants + store.further
+        guard number >= 1, number <= order.count else { return }
+        openAgent(order[number - 1].id)
     }
 }
 

@@ -357,3 +357,23 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
+
+## Voice sidecar (Resources/voice/xool_voice)
+
+Adapted from "Jarvis Stimme" of <https://github.com/Paulito12209/jarvis-on-nod>,
+by the same author as Xool OS (voice activity detection, microphone and
+speaker streams, speech to text, text to speech, bridge phrases, the
+sentence-chunking idea, the setup script scripts/jarvis-mac.sh that became
+scripts/xool-setup.sh). That repository's NOTICE mentions screenshots of Nod
+(n8n GmbH, Apache License 2.0); none of those are used here, and Nod is not
+embedded.
+
+`scripts/xool-setup.sh` installs, onto the user's Mac and not as part of this
+repository or the app bundle, programs and models that keep their own
+licences: Ollama (MIT), Piper TTS (GPL-3.0), the voice "Thorsten" by Thorsten
+Müller (CC0), Whisper (MIT, OpenAI), mlx-whisper (MIT), faster-whisper (MIT),
+Silero VAD (MIT), sounddevice (MIT), numpy (BSD). Piper runs as a separate
+process in its own Python environment; it is not linked into the app. The
+licence of the Piper voices for redistribution inside the bundle is still to
+be checked (docs/PLAN.md, open points), which is why the voice is downloaded
+at setup time.

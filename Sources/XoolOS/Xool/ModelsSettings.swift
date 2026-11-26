@@ -73,8 +73,12 @@ struct ModelsSettings: View {
                     Switch(on: $router.allowCloud)
                 }
             }
+            Caption("Local AI")
+            LocalSetupCard()
             Caption("Ollama")
             ollamaCard
+            Caption("Voice")
+            VoiceSettingsCard()
         }
         .onAppear(perform: refresh)
     }

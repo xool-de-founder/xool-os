@@ -312,3 +312,16 @@ Unendliche Fläche (Rahmen, Formen, Text, Bilder, Verbindungen, Zoom/Pan) wie Fi
 Umgesetzt: `AgentRuntime` (Tool-Loop, Streaming, Stop), Tool-Calls im OpenAI-Format (Ollama, LM Studio, OpenAI, OpenRouter) und als Anthropic `tool_use`; Browser-Tools intern über `AgentControl` (`AgentControl.call`, kein Socket); `web_search` (DuckDuckGo-HTML oder `XOOL_SEARXNG`); Skills (`~/Library/Application Support/Xool/skills/<name>/SKILL.md`, `/` im Thread); Schritt-Protokoll mit Sprung zum Tab; Ring und Sidebar-Abschnitt „Agents“; Domain-Erlaubnis pro Agent (`AgentDomainTrust`); Pill-Zustände. Belege: `docs/shots/p3-*.png` (echter Lauf gegen Ollama).
 
 Nicht getestet: Anthropic-/OpenAI-Tools ohne echten Key, LM Studio, Gemini (läuft als Chat ohne Tools), XCTest. Offen: farbiger Zeiger auf der Webseite, Tool-Calls für Gemini.
+
+---
+
+## Stand Phase 4 (2026-11-26)
+
+Umgesetzt: `scripts/xool-setup.sh` (aus `jarvis-mac.sh`; `--check`, `--model`, `--yes`, `--no-voice`; kein Admin-Passwort, löscht nichts); Knopf „Set up local AI“ in Einstellungen › Modelle (`LocalSetup`: Schritte, Download-Balken, Fehler mit „Next:“); Voice-Sidecar `Resources/voice/xool_voice` (VAD, Whisper/mlx, Piper, Brückenphrasen; JSON-Zeilen über stdin/stdout statt WebSocket) mit `VoiceBridge` (Sprache → aktiver Agent-Thread über `ChatRuntime`/`AgentRuntime`, Antwort satzweise gesprochen, Barge-in, Brückenphrase nur ohne ersten Satz, Thinker in Pausen mit Notizen und „Übrigens“ im Freisprech-Modus); Push-to-Talk `fn` oder `⌥Leertaste`, Mikrofon-Knopf im Thread (Rechtsklick: Freisprechen), Pill „listening“, Avatar blinzelt beim Verstehen; Mikrofon-Anfrage über `AVCaptureDevice`; Fallback `NativeEngine` (SFSpeechRecognizer + AVSpeechSynthesizer, nur Push-to-Talk).
+
+Geprüft (ohne echtes Mikrofon): `--check`; Sidecar-Installation per `uv` in frischer venv; Piper → WAV → Whisper (Rundlauf); Server mit `--null-audio` (Bridge, Sprechen, Stop, WAV als Eingabe); ganze Kette mit WAV als Eingabe im echten Lauf (`XOOL_UI=voicewav:…`): Whisper → Thread → Agent öffnet `example.com` im Agent-Tab, liest, antwortet auf Deutsch → Sätze beim Sidecar; Stimme per `voiceinterrupt` zum Schweigen gebracht.
+
+Nicht geprüft: echtes Mikrofon und Lautsprecher (fn halten, Barge-in per Stimme, Echo), die Mikrofon-/Spracherkennungs-Abfragen von macOS, Input-Monitoring für `fn` bei anderer App im Vordergrund, `NativeEngine`, das Skript als frischer Lauf mit Installation von Ollama und Modell-Download (der Lauf auf dieser Maschine wurde nicht freigegeben; nur `--check`, die Stimm-Installation und die Schritte einzeln), Screenshots (Fenster war nicht abgreifbar), XCTest. Piper hat auf macOS Mühe mit langen Pfaden zu `espeak-ng-data` (über ~160 Zeichen): `tts.py` legt dann einen kurzen Symlink an.
+
+Offen: Englisch spricht Piper mit der deutschen Stimme (Sprachwahl pro Satz nur im nativen Weg); Phase B (alles in Swift); Lizenz der Piper-Stimmen für die Weitergabe im Bundle.
+

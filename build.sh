@@ -40,7 +40,10 @@ mv "$APP/Contents/MacOS/$EXECUTABLE.sdk" "$APP/Contents/MacOS/$EXECUTABLE"
 # The AppleScript dictionary (Scripting.swift): read-only, tabs' addresses
 # and titles.
 cp Xool.sdef "$APP/Contents/Resources/"
+# The one-command setup (Settings > Models > Set up local AI runs it).
+cp scripts/xool-setup.sh "$APP/Contents/Resources/"
 [ -d Resources ] && cp -R Resources/. "$APP/Contents/Resources/" || true
+find "$APP/Contents/Resources" -name __pycache__ -prune -exec rm -rf {} + 2>/dev/null || true
 
 if [ "$CONFIG" = "release" ]; then
   strip -x "$APP/Contents/MacOS/$EXECUTABLE"
@@ -110,7 +113,9 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>NSCameraUsageDescription</key>
   <string>Websites you visit can ask to use your camera. Xool OS asks you the first time each site does.</string>
   <key>NSMicrophoneUsageDescription</key>
-  <string>Websites you visit can ask to use your microphone. Xool OS asks you the first time each site does.</string>
+  <string>Xool OS listens while you hold the talk key or press the mic button, to hear what you ask an agent. Websites you visit can also ask to use your microphone; Xool OS asks you the first time each site does.</string>
+  <key>NSSpeechRecognitionUsageDescription</key>
+  <string>When the Whisper voice is not set up, Xool OS uses the Mac's speech recognition to turn what you say to an agent into text.</string>
   <key>NSLocationUsageDescription</key>
   <string>Websites you visit can ask for your location. Xool OS asks you each time a site does.</string>
   <key>NSLocationWhenInUseUsageDescription</key>

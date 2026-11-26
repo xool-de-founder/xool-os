@@ -19,12 +19,16 @@ struct SpeechChunker {
 
     mutating func feed(_ text: String) -> [String] {
         buffer += stripThink(text)
+        // A finished link is just its words from here on.
+        buffer = buffer.replacingOccurrences(of: #"\[([^\]]+)\]\([^)\s]*\)"#, with: "$1", options: .regularExpression)
         var ready: [String] = []
         while let piece = take() { ready.append(piece) }
         return ready
     }
 
     mutating func flush() -> [String] {
+        if !inThink { buffer += tagCarry }
+        tagCarry = ""
         let rest = Self.clean(buffer)
         buffer = ""
         if rest.isEmpty { return [] }
@@ -34,11 +38,25 @@ struct SpeechChunker {
 
     // MARK: pieces
 
+    /// A tag cut in two by the stream ("<thi" + "nk>") waits here for its other half.
+    private var tagCarry = ""
+
+    private static func partialSuffix(of text: String, for tag: String) -> String {
+        for length in stride(from: min(tag.count - 1, text.count), through: 1, by: -1) where text.hasSuffix(String(tag.prefix(length))) {
+            return String(tag.prefix(length))
+        }
+        return ""
+    }
+
     private mutating func stripThink(_ token: String) -> String {
-        var out = "", rest = Substring(token)
+        var out = "", rest = Substring(tagCarry + token)
+        tagCarry = ""
         while !rest.isEmpty {
             if inThink {
-                guard let end = rest.range(of: "</think>") else { return out }
+                guard let end = rest.range(of: "</think>") else {
+                    tagCarry = Self.partialSuffix(of: String(rest), for: "</think>")
+                    return out
+                }
                 rest = rest[end.upperBound...]
                 inThink = false
             } else if let start = rest.range(of: "<think>") {
@@ -46,15 +64,37 @@ struct SpeechChunker {
                 rest = rest[start.upperBound...]
                 inThink = true
             } else {
-                out += rest
+                let partial = Self.partialSuffix(of: String(rest), for: "<think>")
+                tagCarry = partial
+                out += rest.dropLast(partial.count)
                 break
             }
         }
         return out
     }
 
+    /// Where a piece must end at the latest: before a link or address that
+    /// is still arriving (cut in the middle it would be read out as junk).
+    private static func openEnd(_ chars: [Character]) -> Int {
+        let text = String(chars)
+        var limit = chars.count
+        if let open = text.range(of: #"\[[^\]]*$"#, options: .regularExpression) ?? text.range(of: #"\[[^\]]+\]\([^)]*$"#, options: .regularExpression) {
+            limit = min(limit, text.distance(from: text.startIndex, to: open.lowerBound))
+        }
+        if let url = text.range(of: #"https?://\S*$"#, options: .regularExpression) {
+            limit = min(limit, text.distance(from: text.startIndex, to: url.lowerBound))
+        }
+        return limit
+    }
+
+    /// The part of the buffer after an unfinished link, kept for later.
+    private var held: [Character] = []
+
     private mutating func take() -> String? {
-        let chars = Array(buffer)
+        let all = Array(buffer)
+        let limit = Self.openEnd(all)
+        let chars = Array(all[..<limit])
+        held = Array(all[limit...])
         // A sentence end: . ! ? … then a space or newline.
         var i = 0
         while i < chars.count {
@@ -87,7 +127,7 @@ struct SpeechChunker {
 
     private mutating func cut(_ chars: [Character], _ end: Int) -> String? {
         let piece = Self.clean(String(chars[..<end]))
-        buffer = String(chars[end...])
+        buffer = String(chars[end...]) + String(held)
         if piece.isEmpty { return nil }
         emitted += 1
         return piece
@@ -111,8 +151,9 @@ struct SpeechChunker {
     static func clean(_ raw: String) -> String {
         var text = raw
         let rules: [(String, String)] = [
+            (#"[\[(]\s*https?://[^\])\s]*\s*[\])]"#, ""),
             (#"\[([^\]]+)\]\([^)]*\)"#, "$1"),
-            (#"https?://\S+"#, " link "),
+            (#"https?://\S+"#, ""),
             (#"`{1,3}"#, ""),
             (#"(\*\*|__|\*|~~)"#, ""),
             (#"(?m)^\s{0,3}#{1,6}\s*"#, ""),
@@ -124,6 +165,7 @@ struct SpeechChunker {
         }
         text = String(text.unicodeScalars.filter { !($0.properties.isEmojiPresentation || (0x1F000...0x1FAFF).contains($0.value)) })
         text = text.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+        text = text.replacingOccurrences(of: #"\s+([.,;:!?])"#, with: "$1", options: .regularExpression)
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

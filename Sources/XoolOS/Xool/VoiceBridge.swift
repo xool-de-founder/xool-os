@@ -196,6 +196,7 @@ final class VoiceBridge: ObservableObject {
 
     /// Stop talking and thinking, now.
     func interrupt() {
+        if Store.testing { FileHandle.standardError.write(Data("voice interrupt\n".utf8)) }
         thinker?.cancel()
         engine?.stop()
         if let s = session { ChatRuntime.shared.stop(s.thread) }
@@ -206,6 +207,7 @@ final class VoiceBridge: ObservableObject {
     // MARK: events
 
     private func handle(_ event: VoiceEvent) {
+        if Store.testing { FileHandle.standardError.write(Data("voice event: \(event)\n".utf8)) }
         switch event {
         case .ready: loading = nil
         case .loading(let what): loading = what == "ears" ? "Getting the ears ready. The first time this downloads about 1.5 GB." : nil
@@ -278,6 +280,7 @@ final class VoiceBridge: ObservableObject {
             let fresh = String(text.dropFirst(s.consumed))
             s.consumed = text.count
             for piece in s.chunker.feed(fresh) {
+                if Store.testing { FileHandle.standardError.write(Data("voice say: \(piece)\n".utf8)) }
                 engine.say(piece, first: !s.sentAny)
                 s.sentAny = true
             }
@@ -289,7 +292,10 @@ final class VoiceBridge: ObservableObject {
         }
         if !s.finished, !ChatRuntime.shared.thinking.contains(s.thread) {
             s.finished = true
-            for piece in s.chunker.flush() { engine.say(piece, first: !s.sentAny); s.sentAny = true }
+            for piece in s.chunker.flush() {
+                if Store.testing { FileHandle.standardError.write(Data("voice say: \(piece)\n".utf8)) }
+                engine.say(piece, first: !s.sentAny); s.sentAny = true
+            }
             if !s.sentAny {
                 // Nothing to read (stopped, or an error the thread shows).
                 session = nil

@@ -22,6 +22,11 @@ final class ModelStore: ObservableObject {
         var id: String { choice.provider + "/" + choice.model }
         var title: String { choice.model.isEmpty ? (choice.aiProvider?.name ?? "") : choice.model }
         var detail: String { choice.aiProvider?.name ?? "" }
+        /// Local models: size on disk and how it sits in memory.
+        var size: Int64 = 0
+        var running = false
+        var fit: RAMFit? { size > 0 ? RAMFit.of(size: size) : nil }
+        var sizeText: String { size > 0 ? ByteCountFormatter.string(fromByteCount: size, countStyle: .file) : "" }
     }
 
     @Published private(set) var local: [Entry] = []
@@ -54,10 +59,15 @@ final class ModelStore: ObservableObject {
         cloud = cloudEntries()
         var found: [Entry] = []
         var down: [String] = []
-        for provider in [AIProvider.ollama, .lmStudio] {
-            let names = await AIClient.shared.localModels(provider)
-            if names.isEmpty { down.append(provider.name) }
-            found += names.map { Entry(choice: ModelChoice(provider: provider.rawValue, model: $0)) }
+        await OllamaCatalog.shared.refresh()
+        let ollama = OllamaCatalog.shared.installed
+        if ollama.isEmpty { down.append(AIProvider.ollama.name) }
+        found += ollama.map { Entry(choice: ModelChoice(provider: AIProvider.ollama.rawValue, model: $0.name), size: $0.size, running: $0.running) }
+        let studio = await AIClient.shared.localModels(.lmStudio)
+        if studio.isEmpty { down.append(AIProvider.lmStudio.name) }
+        found += studio.map { Entry(choice: ModelChoice(provider: AIProvider.lmStudio.rawValue, model: $0)) }
+        if AIEngine.shared.available, case .ready = AIEngine.shared.state {
+            found.append(Entry(choice: ModelChoice(provider: AIProvider.thisMac.rawValue, model: AIProvider.thisMac.defaultModel)))
         }
         local = found
         offline = down

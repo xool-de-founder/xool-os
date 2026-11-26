@@ -64,7 +64,7 @@ struct ModelPicker: View {
                           empty: models.refreshing ? "Looking for Ollama and LM Studio…"
                               : "No local model found. \(models.offline.joined(separator: " and ")) isn't running, or has no model yet.")
                     group("Cloud", models.cloud.filter(matches),
-                          empty: "Cloud models appear once you add a key in Settings › AI.")
+                          empty: "Cloud models appear once you add a key in Settings › Models.")
                 }
                 .padding(Theme.Space.s)
             }
@@ -72,6 +72,7 @@ struct ModelPicker: View {
             Divider().overlay(Theme.line)
             XoolButton(action: {
                 ui.showModels = false
+                Browsers.frontBrowser.settingsPage = .models
                 Browsers.frontBrowser.tuning = true
             }) {
                 Label("Models and keys…", systemImage: "gearshape")
@@ -82,7 +83,7 @@ struct ModelPicker: View {
             }
             .padding(Theme.Space.xs)
         }
-        .frame(width: 300)
+        .frame(width: 340)
         .background(Theme.raised)
         .onAppear { searching = true; Task { await models.refresh() } }
     }
@@ -108,11 +109,16 @@ struct ModelPicker: View {
                         .frame(width: 12)
                     Text(entry.title).font(Theme.body).foregroundStyle(Theme.text).lineLimit(1)
                     Spacer(minLength: 4)
+                    if let fit = entry.fit {
+                        Image(systemName: fit.symbol).font(.system(size: 10)).foregroundStyle(Theme.textMuted)
+                            .help("\(entry.sizeText), \(fit.words)")
+                        Text(entry.sizeText).font(Theme.caption).foregroundStyle(Theme.textMuted)
+                    }
                     Text(entry.detail).font(Theme.caption).foregroundStyle(Theme.textMuted)
                 }
                 .padding(.horizontal, Theme.Space.s)
             }
-            .accessibilityLabel("\(entry.title), \(entry.detail)")
+            .accessibilityLabel("\(entry.title), \(entry.detail)" + (entry.fit.map { ", \(entry.sizeText), \($0.words)" } ?? ""))
         }
     }
 }

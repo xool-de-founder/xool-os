@@ -40,7 +40,7 @@ struct SettingsPanel: View {
     @ObservedObject private var likeArc = LikeArc.shared
 
     enum Page: String, CaseIterable, Identifiable {
-        case general, appearance, themes, tabs, browsing, spaces, passwords, privacy, ai, extensions, keyboard, about
+        case general, appearance, themes, tabs, browsing, spaces, passwords, privacy, ai, models, extensions, keyboard, about
         var id: String { rawValue }
         var title: String {
             switch self {
@@ -53,6 +53,7 @@ struct SettingsPanel: View {
             case .passwords: return "Passwords"
             case .privacy: return "Privacy"
             case .ai: return "AI"
+            case .models: return "Models"
             case .extensions: return "Extensions"
             case .keyboard: return "Keyboard & Mouse"
             case .about: return "About"
@@ -69,6 +70,7 @@ struct SettingsPanel: View {
             case .passwords: return "key"
             case .privacy: return "hand.raised"
             case .ai: return "sparkles"
+            case .models: return "cpu"
             case .extensions: return "puzzlepiece.extension"
             case .keyboard: return "keyboard"
             case .about: return "info.circle"
@@ -87,7 +89,7 @@ struct SettingsPanel: View {
         /// The rail's three blocks: the browser, your data and tools, About.
         static var blocks: [[Page]] {
             [[.general, .appearance, .themes, .tabs, .browsing, .spaces],
-             [.passwords, .privacy] + (AI.shipped ? [.ai] : []) + [.extensions, .keyboard],
+             [.passwords, .privacy] + (AI.shipped ? [.models, .ai] : []) + [.extensions, .keyboard],
              [.about]]
         }
     }
@@ -357,6 +359,8 @@ struct SettingsPanel: View {
             }
         case .extensions:
             ExtensionsPage(browser: browser)
+        case .models:
+            ModelsSettings(browser: browser)
         case .ai:
             if AI.shipped { AISettings(browser: browser, prefs: prefs) }
         default:

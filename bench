@@ -162,7 +162,7 @@
 Needs Settings › General › "Let a script drive Search" switched on in the
 running app. IDs are the first characters of a tab's id, as `tabs` prints
 them. With --test, talks to a SEARCH_PROBE run instead of the real one;
-with --world NAME, to a SEARCH_PROBE=NAME run, the world "Search (NAME)".
+with --world NAME, to a SEARCH_PROBE=NAME run, the world "Xool (NAME)".
 """
 
 import json
@@ -177,7 +177,7 @@ def clean(text):
     return re.sub(r"[\x00-\x1f\x7f\u200e\u200f\u202a-\u202e\u2066-\u2069]", "", str(text or ""))
 
 def folder(world):
-    name = f"Search ({world})" if world else "Search"
+    name = f"Xool ({world})" if world else "Xool"
     return os.path.expanduser(f"~/Library/Application Support/{name}")
 
 def ask(path, request):

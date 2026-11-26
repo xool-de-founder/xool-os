@@ -1,10 +1,10 @@
 # Third-party notices
 
-Search is MIT licensed (see [LICENSE](LICENSE)). Parts of the optional
-developer tools packages, which Search downloads only when asked (Settings ›
-About › Developer), are adapted from the projects below, under their own
-licenses. Each package carries this file in its bundle
-(Contents/Resources/THIRD_PARTY_NOTICES.md).
+**Xool OS is based on Search by Office Commun (MIT)**,
+<https://github.com/driceroland/Search>. Search's licence is kept in
+[LICENSE](LICENSE). Xool OS removed Search's optional developer tools
+packages; the notices below come from them and are kept for the code that
+may still carry that heritage.
 
 ## Developer Tools Lite (Sources/DevToolsLite)
 

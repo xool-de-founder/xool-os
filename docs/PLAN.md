@@ -2,7 +2,7 @@
 
 Ein schneller, nativer macOS-Browser mit KI-Agents (lokal zuerst, Cloud per API-Key optional), Second Brain, Sprachsteuerung mit Duplex-Mechanik und einer Design-Fläche mit Notion-artigen `/`-Blöcken.
 
-Stand: 2026-11-26 · Status: Phasen 0–8 umgesetzt.
+Stand: 2026-11-26 · Status: Phasen 0–9 umgesetzt.
 
 ---
 
@@ -447,7 +447,8 @@ Anlass: Test nach Phase 8. Diktat kommt als Text im Jarvis-Thread an, Jarvis ant
 
 - Name/Bundle-ID final (`com.xool.os`?) und Signier-Team.
 - Ob Search-Sync (iCloud) später mit eigenem Container zurückkommt.
-- Lizenz der Voice-Modelle (Piper-Stimmen) für die Weitergabe im Bundle prüfen.
+- Lizenz der Voice-Modelle (Piper-Stimmen) für die Weitergabe im Bundle prüfen. Piper selbst ist GPL-3.0 (siehe `THIRD_PARTY_NOTICES.md`), das Weckwort-Modell `hey_jarvis` nur nichtkommerziell.
+- Echtes Echo-Löschen (Voice Processing) für den Gesprächsmodus mit Lautsprechern (Stand Phase 9).
 
 ---
 
@@ -516,3 +517,79 @@ Umgesetzt (A–G, Layout-Vertrag 8.1 eingehalten): **A** `XoolMark.swift`: vier 
 Geprüft (echter Lauf, Debug- und Release-Build): Screenshots hell und dunkel (`docs/shots/p8-newtab-*`, `p8-agents-*`, `p8-thread-sidebar-*`; Mehr-Chip `p8-more-popover-dark.png` und Menüleisten-Menü `p8-menubar-menu.png` nur dunkel, das Menüleisten-Symbol ist ein Template-Bild und folgt dem System, das ich nicht umgeschaltet habe), Bildfolge der Panel-Animation aus dem echten Fenster mit 8-fach verlangsamtem Flug (`p8-flight-open.png`/`p8-flight-close.png` als Bogen, Einzelbilder `p8-flight-open-NN.png`; `scripts/shoot-seq.sh`, `XOOL_FLIGHT_SLOW`; die Bilder zeigen den Flug verlangsamt, in echter Geschwindigkeit dauert er 320 ms und wurde nicht mit einer Aufnahme belegt). `⌘T` über den Menüpfad (`XOOL_UI=keyevent`). Globales Kürzel: ein echtes `⌥⌘J` (per CGEvent) bei Finder im Vordergrund erreicht `VoiceBridge.jarvisKey` und startet das Zuhören bei Jarvis (Log `XOOL_VOICE_LOG`). Menüleiste: echter Mausklick auf das Symbol startet das Zuhören bei Jarvis. Zuhören mit WAV: `jarvisfeed:<wav>` → Whisper → Jarvis-Thread → Antwort. `Metadata.appintents` im Bundle, Eintrag `TalkToJarvisIntent` und die drei Phrasen darin geprüft.
 
 Nicht geprüft / bekannt: Die Kurzbefehle-App selbst (ob die Aktion dort in der Liste steht, brauchte Klicks in einer fremden App; die Metadaten sind erzeugt und gültig, die Registrierung beim System nicht gesehen); echtes Mikrofon und Lautsprecher bei Taste/Symbol (die Mikrofon-Erlaubnis und der Rundlauf mit gesprochener Stimme); Halten ≥ 0,4 s als Push-to-Talk und das „kurz drücken, bis zum nächsten Druck“ nur im Code und im Log, nicht mit Stimme; Verhalten der Taste, wenn eine andere App ⌥⌘J belegt (Meldung in den Einstellungen, nicht ausgelöst); Jarvis delegiert mit einem echten Modell (nur der Code-Pfad und die Tool-Beschreibung, kein Lauf); Seitenleiste rechts (`sidePosition == .right`) mit offenem Panel; mehrere Fenster teilen `PanelFlight`/`XoolUI` (zuletzt geändertes gewinnt); XCTest. Entscheidungen: Der Flug lässt die Pills im Panel „wohnen“ (Zeile ohne Jarvis/Assistenten, solange es offen ist). Kerbenfüllung statt eckiger Seitenkarte, damit die Webseite ihre Rundung behält. Das alte `Logomark` (Search) steht noch in `Design.swift`, ungenutzt.
+
+
+---
+
+## Stand Phase 9 (2026-11-26)
+
+**Befund bestätigt.** Im echten Profil fehlte `~/Library/Application Support/Xool/voice`. Das „Diktat“ im Jarvis-Büro war ein Text-Diktat in ein Eingabefeld (also eine getippte Nachricht), und Jarvis' Prompt kannte weder Ohren noch Stimme. Jetzt: Stimme per `scripts/xool-setup.sh --only-voice` im echten Profil installiert (1,4 GB venv, Piper `de_DE-thorsten-high`, Whisper-Cache, 323 vertonte Phrasen unter `voice/cache/bridges`). Der Büro-Knopf ist ein Gesprächsknopf, kein Text-Diktat mehr.
+
+Umgesetzt (A–F, Layout-Vertrag 8.1 unverändert; UI-Texte englisch wie die App):
+
+- **A Einsatzbereit.** `VoiceOffice.swift`: Statuszeile im Büro (Ready / Listening / Thinking / Speaking / Installing / Waking up / Voice not set up) und Karte „Set up the voice (about 3 GB)“ mit Fortschritt, Stop und „Try again“ (`xool-setup.sh --only-voice`; das Skript holt jetzt auch Whisper und macht die 323 Phrasen: `python -m xool_voice --prepare`). Nach der Einrichtung startet der Sidecar sofort. Er startet auch mit der App (`VoiceBridge.install → autostart`), lädt Ohren und Phrasen vor und bleibt warm; bei Absturz bis zu drei Neustarts in fünf Minuten; die Ollama-Modelle werden warm gehalten (`keep_alive 60m`). Menüleiste: Statuszeile und „Set up the voice…“. Native Kette: ohne Sidecar `NativeEngine` (SFSpeechRecognizer + `AVSpeechSynthesizer` mit der besten installierten deutschen Stimme, Premium vor Enhanced) und Sofort-Urteil (`QuickJudge.swift`). Scheitert eine Antwort, wird eine Entschuldigung gesprochen, nie Stille. Nur ein vom Nutzer gestoppter Lauf bleibt still.
+- **B Sprach-Prompt.** Jarvis' System-Prompt sagt jetzt immer, dass er hört und spricht und was installiert ist (`VoiceBridge.abilities`). Sprach-Turns bekommen `spokenStyle`: Sprachassistent, kurze natürliche Sätze, kein Markdown, keine Listen, keine Links, sprechbare Zahlen, Datum und Uhrzeit, „Werkzeuge sofort aufrufen, nie nur ankündigen“. `clean_for_speech` spricht Zahlen und Einheiten („3 Komma 5 Grad Celsius“, „12 Euro“, „beziehungsweise“). Satz für Satz, während das Modell schreibt (`SpeechChunker`, unverändert). Schutz im `AgentRuntime`: kündigt ein Modell nur an („Ich suche jetzt …“) und ruft nichts auf, obwohl das Urteil Werkzeuge verlangte, wird es einmal angestoßen.
+- **C Duplex.** Gesprächsmodus (Wellenform im Büro, `⌥⌘J` kurz, Menüleisten-Symbol, Einstellungen › Models › Voice › Conversation): Das Mikrofon bleibt offen, Silero-VAD, Pause einstellbar (0,35 / 0,5 / 0,8 s, Standard 0,5). Halten von `⌥⌘J` oder `fn` bleibt Push-to-Talk. **Frühes Verstehen:** Whisper startet schon in den ersten 220 ms der Pause. Bleibt die Pause bestehen, steht der Text 0–1 ms nach dem Satzende da, sonst wird er verworfen. **Barge-in:** 5 von 12 Blöcken (0,4 s) klar lauter als das eigene Echo → Wiedergabe sofort stumm, Generierung abgebrochen, das Gesagte wird als nächster Satz verstanden. **Echo-Unterdrückung im Sidecar:** Er führt den Pegel der eigenen Ausgabe mit, lernt in den ersten 0,45 s jeder Sprechphase, wie viel davon das Mikrofon hört (Lautsprecher oder Kopfhörer), und verlangt danach eine Stimme deutlich über diesem Echo. Das ist ein Tor, kein echtes Echo-Löschen. `AVAudioEngine` Voice Processing ist **nicht** eingebaut (siehe unten). Vorausdenken (Thinker, „Übrigens …“) ist unverändert aus Phase 4 und läuft in den Pausen des Gesprächsmodus.
+- **D Gemeint?** Sitzung (Standard 20 s; 10, 20 oder 40 s in den Einstellungen). Sie öffnet mit dem Start des Gesprächs, mit „Jarvis …“ (Name unscharf erkannt: Jarvis, Jarwis, Travis …), mit „Hey Jarvis“ und nach jeder Antwort. „Tschüss“ schließt sie. Ohne Taste und ohne Namen entscheidet das schnelle lokale Modell (`DecisionModel.addressed`, bevorzugt `gemma4:12b`, sonst das kleinste installierte; JSON `to_assistant`, mit Beispielen im Prompt), in der Sitzung und außerhalb. Ohne Modell gilt: in der Sitzung ja, sonst nein. Nicht gemeint → nichts gesagt, nichts im Thread (Log „ignored“). **Weckwort** „Hey Jarvis“ (openWakeWord, lokal, Standard aus, Schalter in den Einstellungen; das Modell wird beim Einrichten mitgeladen).
+- **E Brücken und Sofort-Urteil.** `phrasen.py`: **323 Phrasen in 21 Situationen** (Frage, Befehl, Erzählung, Gefühl, Freude, Meinung, **Websuche (30), Browser (25), Brain (20)**, Delegieren, Rechnen, Erklären, Lob, Überraschung, Rückfrage, Entschuldigung, Abschied, Hallo, Warten, Unklar, Danke). Alle werden beim ersten Start vertont und als `.npy` gecacht (Start danach: 323 aus dem Cache). Keine Wiederholung: nicht in den letzten 60 Wahlen und nicht innerhalb von 4 Minuten. `urteil.py` (kein Modell, Mikrosekunden) liefert mit jedem Transkript `route` (wissen / web / browser / brain / delegate / calc), `kind` (Phrasengruppe), `tools` und `named`. „Wissen“ → Lauf ohne Werkzeuge über das schnelle Sprachmodell (Rolle Voice, sonst `OllamaCatalog.quickVoice`, Reihenfolge aus jarvis-on-nod). Alles andere → Agent mit Werkzeugen. Die Brücke läuft sofort. Bei „wissen“ und einem Modell, das im Schnitt unter 0,6 s zum ersten Satz braucht, kommt sie nach 250 ms Karenz und nur, wenn dann noch kein Satz da ist. Nach 9 s und 21 s ohne Satz kommt eine „Warten“-Phrase.
+- **F Lizenzen** in `THIRD_PARTY_NOTICES.md`. Wichtig: **Piper (`piper-tts` 1.x) ist GPL-3.0**, läuft als getrennter Prozess im venv und wird nicht gebündelt. Das **`hey_jarvis`-Modell von openWakeWord ist nur nichtkommerziell** (CC BY-NC-SA 4.0), das Weckwort ist deshalb standardmäßig aus.
+
+**Belege, automatisiert** (WAV statt Mikrofon und Lautsprecher; Eingaben mit macOS-Stimmen wie „Anna“, nicht mit Piper):
+
+1. `scripts/voice-e2e.py` (Sidecar mit `--fake-mic --record`, ein lokales Ollama antwortet im Sprachstil): 11 von 11 Prüfungen grün. Bericht und Ausgangs-WAVs liegen in `docs/voice-e2e/` (`report.json`, `1-wissen-out.wav`, `2-web-out.wav`, `3b-bargein-out.wav`).
+   - Normale Frage → verstanden, Antwort als WAV-Aufnahme des Ausgangs, die Whisper wieder als „… Hauptstadt von Frankreich ist Paris …“ versteht, kein Markdown gesprochen.
+   - Websuche-Frage → Route `web`, Brücke aus der Websuche-Gruppe („Ich schau schnell nach.“).
+   - Lange Antwort mit 15 % Echo im Mikrofon → keine Selbstunterbrechung.
+   - Barge-in → erkannt, Jarvis verstummt, „… ich habe eine andere Frage.“ wird verstanden.
+   - Satz an jemand anderen → `named: false`.
+2. Ganze App (Release-Build, Profil „shots“; `jarvisfeed`, `jarvisfree`, `voicemic` aus `XOOL_UI`; Protokolle `docs/voice-e2e/app-*.log`, Ausgangs-WAVs `app-wissen-out.wav` und `app-barge-out.wav`):
+   - Wissensfrage → Brücke, erster Satz nach 0,67 s, gesprochen.
+   - Websuche-Frage → Brücke („Moment, ich such das raus.“), der Agent ruft `web_search`, die Antwort wird gesprochen.
+   - Gesprächsmodus mit offenem (simuliertem) Mikrofon → Frage per VAD erkannt, Antwort gesprochen, Zwischenruf → `barge_in` → Wiedergabe und Lauf abgebrochen, Zwischenruf verstanden und beantwortet.
+   - „Schatz, kannst du bitte den Tisch decken …“ ohne Namen → **ignoriert** (nichts im Thread, nichts gesagt). Eine Folgefrage ohne Namen in offener Sitzung → beantwortet.
+   - Native Kette (Sidecar-Ordner absichtlich leer): Apple-Erkennung versteht die WAV, Jarvis antwortet, `AVSpeechSynthesizer` spricht (Ereignisse speaking an und aus).
+   - Einrichtungs-Karte: frische Installation in einen leeren Ordner über den Knopf-Pfad (`voicesetup`), Fortschritt im Büro, danach startet der Sidecar von selbst und meldet „warm“.
+   - Screenshots: `docs/shots/p9-office-{ready-dark,ready-light,missing-dark,installing-light}.png`.
+
+**Latenzen** (M5 Pro, 64 GB, Whisper large-v3-turbo über MLX, `gemma4:12b` warm). „Satzende“ ist der Endpunkt nach der Pause. Die Pause selbst kommt dazu (Standard 0,5 s).
+
+| Messung | Ergebnis | Ziel |
+|---|---|---|
+| Satzende → Text da (frühes Verstehen) | 0–1 ms (Whisper selbst 200–220 ms, läuft in der Pause) | – |
+| Satzende → Brückenphrase hörbar | 0–16 ms (App 11–33 ms) | < 300 ms ✓ |
+| Modell: erster Satz fertig (Wissensfrage) | 195–290 ms im Sidecar-Test, 0,24–0,70 s in der App | < 1,5 s ✓ |
+| Satzende → erster echter Satz **hörbar** (nach der Brücke, die erst ausgespielt wird) | 1,1–1,3 s | < 1,5 s ✓ |
+| Adressaten-Entscheidung (warm / erster Aufruf) | 160–360 ms / ≈ 730 ms | – |
+| Barge-in: Stimme setzt ein → Jarvis still | ≈ 160 ms (5 Blöcke); bei lautem Echo und leiser Stimme bis ≈ 700 ms | – |
+| Barge-in: Entscheidung → Wiedergabe stumm | 0,1 ms (App-Abbruch im selben Ereignis) | < 150 ms ✓ |
+| **Werkzeug-Route** (Websuche) mit Jarvis' `qwen3.5:27b` | erster Satz nach ≈ 7 s (der dichte 27B liest den Werkzeug-Prompt; in der Zeit spricht die Brücke) | < 1,5 s **nicht erreicht** |
+
+Das Tool-Ziel scheitert am gewählten Modell, nicht an der Stimme. Ein schnelles MoE (z. B. `qwen3.6:35b-a3b`, in `voicePreference` vorn) als Jarvis- oder Agent-Modell bringt es in die Nähe. Jarvis' eigenes Modell überschreibe ich nicht (das Wort des Nutzers).
+
+**Nicht geprüft / bekannt:**
+- Echtes Mikrofon und echte Lautsprecher: die Mikrofon-Abfrage von macOS für den Sidecar (er läuft als Kindprozess der App), Echo im echten Raum, Wirkung des Echo-Tors bei lauten Lautsprechern, Kopfhörer, Stimmen echter Menschen, Dialekt, Hintergrundgeräusche. Die Eingaben waren synthetische macOS-Stimmen.
+- **Kein echtes Echo-Löschen** (`setVoiceProcessingEnabled`, Voice Processing). Es bräuchte Mikrofon **und** Ausgabe in derselben `AVAudioEngine`, der Sidecar spielt aber selbst ab. Nächster Schritt wäre, die Audio-Ein- und -Ausgabe nach Swift zu holen und PCM zwischen App und Sidecar zu schicken. Bis dahin sind Kopfhörer sicher. Mit Lautsprechern kann die Stimme bei sehr lautem Echo nicht oder zu spät unterbrechen, selten auch sich selbst. Gegenmittel: „Talk over the voice“ aus.
+- Weckwort nur in Python mit synthetischem „Hey Jarvis“ geprüft (erkannt), nicht in der App mit echtem Mikrofon. Das Modell ist nichtkommerziell.
+- SpeechAnalyzer (macOS 26) nicht benutzt. Die native Kette ist `SFSpeechRecognizer` (nur Push-to-Talk, kein Gesprächsmodus ohne Sidecar).
+- Menüleisten-Statuszeile und Menüeintrag nur gebaut, nicht im Bild. Schalter „Hey Jarvis“ sowie Sitzungs- und Pausen-Auswahl nur gebaut.
+- Der Thread zeigt den gesprochenen Text so, wie das Modell ihn schreibt (ohne Markdown, weil der Sprach-Prompt es verbietet). Eine formatierte Fassung neben der gesprochenen gibt es nicht.
+- Der Zweitversuch „kündigt nur an“ kostet bei Tool-Fragen eine zusätzliche Modellrunde (≈ 3 s mit dem 27B).
+- Die erste Einrichtung dauert je nach Leitung ein bis vier Minuten (Whisper 1,6 GB). Die Karte sagt „about 3 GB“ (venv 1,4 + Whisper 1,6 + Phrasen 0,1).
+- XCTest.
+
+### Checkliste für den echten Mikrofon-Test (Nutzer)
+
+Vorher: ältere Kopie aus `/Applications` beenden und die App aus `build/Xool OS.app` starten. Beim ersten Sprechen fragt macOS nach dem Mikrofon: **Erlauben**. Fragt macOS nach Spracherkennung (nur der Apple-Weg), ebenfalls erlauben.
+
+1. **Bereit?** Agents-Knopf → das Jarvis-Büro zeigt neben dem Namen „Ready“ (nach 5–10 s, vorher „Waking up“). Kein Kasten „Set up the voice“. Menüleiste: oben „Voice: Ready“.
+2. **Push-to-Talk:** `⌥⌘J` halten, „Wie heißt die Hauptstadt von Frankreich?“, loslassen. Erwartet: kurze Brückenphrase (unter einer halben Sekunde), dann die Antwort auf Deutsch, Satz für Satz, kein „Sternchen“, kein vorgelesener Link. Der Thread zeigt dasselbe als Text.
+3. **Gesprächsmodus:** `⌥⌘J` kurz drücken (oder die Wellenform im Büro). Das Symbol pulsiert, kein Tastendruck pro Satz. Frage stellen, kurz Pause machen, Antwort abwarten.
+4. **Folgefrage ohne Namen** innerhalb von 20 s („Und wie viele Einwohner hat sie?“) → er antwortet. Nach über 20 s Stille und ohne „Jarvis“ antwortet er nur, wenn es klar an ihn geht.
+5. **Nicht gemeint:** mit jemandem im Raum sprechen, laut zu dir selbst reden, den Fernseher laufen lassen → er sagt nichts, im Thread entsteht nichts. Dann „Jarvis, …“ → er antwortet.
+6. **Websuche:** „Jarvis, such im Internet die neuesten Nachrichten zu Apple.“ → passende Brückenphrase („ich schau kurz im Netz nach“), der Agent-Tab öffnet sich sichtbar, die Antwort wird gesprochen. Dauert es lange, kommt nach etwa 9 s eine „Ich bin noch dran“-Phrase. Mit einem langsamen Modell kann der erste echte Satz einige Sekunden brauchen.
+7. **Browser und Brain:** „Öffne github.com“ → „Ich öffne das mal“-Phrase. „Was steht in meinen Notizen zu …?“ → „Ich schau in deine Notizen“.
+8. **Barge-in:** Jarvis eine lange Antwort geben lassen („Erzähl mir ausführlich von Paris“) und dazwischenreden → er verstummt sofort, das Gesagte wird als nächste Frage verstanden. **Zweimal prüfen: mit Kopfhörern und mit den Lautsprechern.** Unterbricht er sich bei Lautsprechern selbst, oder lässt er sich nicht unterbrechen: Lautstärke senken oder Kopfhörer; Einstellungen › Models › Voice › „Talk over the voice“ aus. Bitte notieren, wie laut es war.
+9. **Weckwort:** Einstellungen › Voice › „Say Hey Jarvis“ an, den Gesprächsmodus aus lassen, „Hey Jarvis, wie spät ist es?“ → er antwortet. Das Modell ist nur nichtkommerziell.
+10. **Abschied:** „Tschüss“ → kurze Abschiedsphrase, die Sitzung schließt (danach braucht er wieder seinen Namen).
+11. **Stimme fehlt (optional):** `~/Library/Application Support/Xool/voice` umbenennen, App neu starten → das Büro zeigt „Voice not set up“ und die Karte. Jarvis antwortet auf Sprache trotzdem hörbar mit der Mac-Stimme (Push-to-Talk). Danach den Ordner zurückbenennen.
+12. **Gefühl:** Die Brücke wirkt sofort, Antworten brechen nicht mitten im Wort ab, nichts wird doppelt gesagt, keine Phrase wiederholt sich in kurzer Folge. Auffälliges bitte mit Uhrzeit notieren.

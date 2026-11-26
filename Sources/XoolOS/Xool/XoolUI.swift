@@ -110,6 +110,27 @@ extension XoolUI {
             case "tabs": showTabs = true
             case "models": showModels = true
             case "brain": showBrain = true
+            // Test and profile runs only: put files in the Brain, a search in
+            // its field, an entry on show, or write what a search finds to a file.
+            case "brainadd" where Store.testing || getenv("XOOL_PROFILE") != nil:
+                if pieces.count > 1 { BrainStore.shared.add(pieces[1].split(separator: ";").map { URL(fileURLWithPath: String($0)) }) }
+            case "brainq" where Store.testing || getenv("XOOL_PROFILE") != nil:
+                BrainStore.shared.launchQuery = pieces.count > 1 ? pieces[1] : ""
+            // The window's own drawing to a PNG after n seconds, for a screen
+            // that can't be captured (asleep, locked): snapshot:<seconds>|<path>.
+            case "snapshot" where Store.testing || getenv("XOOL_PROFILE") != nil:
+                let k = (pieces.count > 1 ? pieces[1] : "").split(separator: "|", maxSplits: 1).map(String.init)
+                if k.count == 2 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + (Double(k[0]) ?? 5)) {
+                        guard let view = Browsers.frontBrowser.window?.contentView,
+                              let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+                        view.cacheDisplay(in: view.bounds, to: rep)
+                        try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: k[1]))
+                    }
+                }
+            case "brainlog" where Store.testing || getenv("XOOL_PROFILE") != nil:
+                let k = (pieces.count > 1 ? pieces[1] : "").split(separator: "|", maxSplits: 1).map(String.init)
+                if k.count == 2 { BrainStore.shared.logSearch(k[1], to: k[0]) }
             case "settings":
                 Browsers.frontBrowser.settingsPage = SettingsPanel.Page.named(pieces.count > 1 ? pieces[1] : "models") ?? .models
                 Browsers.frontBrowser.tuning = true

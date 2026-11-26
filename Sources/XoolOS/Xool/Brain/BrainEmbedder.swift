@@ -42,7 +42,17 @@ final class BrainEmbedder: ObservableObject {
 
     /// The model pulled, with the catalog's progress; then the status again.
     func pull() {
-        OllamaCatalog.shared.startPull(model)
+        let catalog = OllamaCatalog.shared
+        catalog.startPull(model)
+        // When the pull is over, the model is there: the status says so and
+        // the waiting pieces get their vectors. (Without this the note stayed
+        // as it was, as if the download had done nothing.)
+        Task { @MainActor [weak self] in
+            while let pull = catalog.pull, pull.failed == nil { try? await Task.sleep(nanoseconds: 400_000_000) }
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            await self?.refresh()
+            BrainStore.shared.startEmbedding()
+        }
     }
 
     /// nomic wants to know which side a text is on.

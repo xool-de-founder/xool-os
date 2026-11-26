@@ -24,7 +24,10 @@ struct BrainView: View {
         store.items.filter { kind == nil || $0.kind == kind }
     }
 
-    private var selected: BrainItem? { store.selection.flatMap { id in store.items.first { $0.id == id } ?? store.item(id) } }
+    private var selected: BrainItem? {
+        if let id = store.selection { return store.items.first { $0.id == id } ?? store.item(id) }
+        return query.isEmpty ? shown.first : hits?.first?.item
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -52,6 +55,7 @@ struct BrainView: View {
         .onDrop(of: [.fileURL], isTargeted: $targeted) { providers in BrainView.drop(providers); return true }
         .onAppear {
             searching = true
+            if let launch = store.launchQuery { query = launch; store.launchQuery = nil; schedule(now: true) }
             store.syncSkills()
             store.syncBookmarks(browser.bookmarks)
             Task { await embedder.refresh(); store.startEmbedding() }
@@ -195,10 +199,10 @@ struct BrainView: View {
     }
 
     private func row(_ item: BrainItem, snippet: String?, hit: BrainHit?) -> some View {
-        let on = store.selection == item.id
+        let on = selected?.id == item.id
         return XoolButton(action: { writing = false; store.selection = item.id }) {
             HStack(alignment: .top, spacing: Theme.Space.s) {
-                Image(systemName: item.kind.symbol).font(.system(size: 12)).foregroundStyle(Theme.textMuted)
+                Image(systemName: item.symbol).font(.system(size: 12)).foregroundStyle(Theme.textMuted)
                     .frame(width: 18, height: 20).accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.title).font(Theme.label).foregroundStyle(Theme.text).lineLimit(1)

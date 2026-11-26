@@ -58,6 +58,15 @@ struct BrainItem: Identifiable, Equatable {
     /// Skills and bookmarks live elsewhere; this is their key there.
     var link: String?
     var excerpt = ""
+    /// A file's symbol by what it is; the kind's otherwise.
+    var symbol: String {
+        guard kind == .file, let ext = file.map({ ($0 as NSString).pathExtension.lowercased() }) else { return kind.symbol }
+        if ["png", "jpg", "jpeg", "heic", "gif", "tiff", "webp"].contains(ext) { return "photo" }
+        if ext == "pdf" { return "doc.richtext" }
+        if ["xlsx", "csv", "numbers", "tsv"].contains(ext) { return "tablecells" }
+        if ["swift", "py", "js", "ts", "json", "sh", "html", "css"].contains(ext) { return "chevron.left.forwardslash.chevron.right" }
+        return "doc"
+    }
     var indexing: Bool { status == "indexing" }
     /// Where an entry is opened from anywhere: a link in an answer.
     var address: String { "xool-brain://" + id }
@@ -212,10 +221,19 @@ final class BrainDB: @unchecked Sendable {
     /// FTS5's phrase syntax kept out of the way: each word is a prefix term,
     /// any of them may match, and the best-matching entries come first.
     static func ftsQuery(_ typed: String) -> String? {
-        let words = typed.split { !$0.isLetter && !$0.isNumber }.map(String.init).filter { !$0.isEmpty }
+        let all = typed.split { !$0.isLetter && !$0.isNumber }.map(String.init).filter { !$0.isEmpty }
+        // Little words match everything: left out, unless nothing else is left.
+        let content = all.filter { $0.count > 2 && !Self.stopwords.contains($0.lowercased()) }
+        let words = content.isEmpty ? all : content
         guard !words.isEmpty else { return nil }
         return words.prefix(12).map { "\"\($0)\"*" }.joined(separator: " OR ")
     }
+
+    private static let stopwords: Set<String> = [
+        "the", "and", "for", "with", "that", "this", "what", "how", "was", "are", "you", "from", "have", "not", "can", "does",
+        "der", "die", "das", "und", "ist", "ein", "eine", "einen", "wie", "was", "wer", "wo", "ich", "mir", "mich", "wir", "sie",
+        "nicht", "noch", "mit", "von", "für", "auf", "dem", "den", "des", "zum", "zur", "oder", "aber", "auch", "muss", "kann", "wird",
+    ]
 
     func search(_ typed: String, kind: BrainKind?, limit: Int) -> [(id: String, snippet: String)] {
         guard let match = Self.ftsQuery(typed) else { return [] }

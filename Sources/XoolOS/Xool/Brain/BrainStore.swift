@@ -7,6 +7,7 @@ struct BrainHit: Identifiable, Equatable {
     /// Found by its words, by its meaning, or both.
     var byText: Bool
     var byMeaning: Bool
+    var cosine: F32 = 0
     var id: String { item.id }
 }
 
@@ -32,6 +33,8 @@ final class BrainStore: ObservableObject {
     /// The entry the Brain view should show (a link, `@`, ⌘K).
     @Published var selection: String?
     private var embedding = false
+    /// Test runs: what the Brain view's field starts with.
+    var launchQuery: String?
 
     init(folder: URL = Store.folder.appendingPathComponent("Brain", isDirectory: true)) {
         self.folder = folder
@@ -282,13 +285,17 @@ final class BrainStore: ObservableObject {
                     for i in 0..<q.count { dot += piece.vec[i] * q[i] }
                     if dot >= Self.minCosine, dot > (best[piece.item]?.cosine ?? -1) { best[piece.item] = (piece.text, dot) }
                 }
-                let ranked = best.sorted { $0.value.cosine > $1.value.cosine }.prefix(30)
+                // Only what is near the nearest: a model's scores sit close
+                // together, and the rest is noise.
+                let top = best.values.map(\.cosine).max() ?? 0
+                let ranked = best.filter { $0.value.cosine >= max(Self.minCosine, top - 0.07) }.sorted { $0.value.cosine > $1.value.cosine }.prefix(30)
                 near = ranked.map { (id: $0.key, snippet: $0.value.text, cosine: $0.value.cosine) }
             }
         }
         var score: [String: Double] = [:]
         var snippet: [String: String] = [:]
         var viaText = Set<String>(), viaMeaning = Set<String>()
+        var cosines: [String: F32] = [:]
         for (rank, hit) in words.enumerated() {
             score[hit.id, default: 0] += 1 / Double(60 + rank)
             snippet[hit.id] = hit.snippet
@@ -298,19 +305,39 @@ final class BrainStore: ObservableObject {
             score[hit.id, default: 0] += 1 / Double(60 + rank)
             if snippet[hit.id] == nil { snippet[hit.id] = String(hit.snippet.prefix(220)) }
             viaMeaning.insert(hit.id)
+            cosines[hit.id] = hit.cosine
         }
         var hits: [BrainHit] = []
         for (id, _) in score.sorted(by: { $0.value > $1.value }) {
             guard let item = db.item(id), kind == nil || item.kind == kind else { continue }
             hits.append(BrainHit(item: item, snippet: (snippet[id] ?? item.excerpt).replacingOccurrences(of: "\n", with: " "),
-                                 byText: viaText.contains(id), byMeaning: viaMeaning.contains(id)))
+                                 byText: viaText.contains(id), byMeaning: viaMeaning.contains(id), cosine: cosines[id] ?? 0))
             if hits.count >= limit { break }
         }
         return hits
     }
 
+    /// Test runs: after the files are read, search and write what was found
+    /// (words, and words with meaning) to a file.
+    func logSearch(_ typed: String, to path: String) {
+        Task { @MainActor in
+            while working > 0 || items.contains(where: \.indexing) { try? await Task.sleep(nanoseconds: 300_000_000) }
+            await BrainEmbedder.shared.refresh()
+            startEmbedding()
+            for _ in 0..<120 where pending > 0 && BrainEmbedder.shared.ready { try? await Task.sleep(nanoseconds: 500_000_000); pending = db.pendingCount() }
+            var out = "embedder: \(BrainEmbedder.shared.status)\npending: \(pending)\n"
+            for (label, meaning, typed) in typed.components(separatedBy: ";;").flatMap({ q in [("words", false, q), ("words+meaning", true, q)] }) {
+                let started = Date()
+                let found = await search(typed, limit: 8, meaning: meaning)
+                out += "\n== \(label) (\(Int(Date().timeIntervalSince(started) * 1000)) ms) for “\(typed)”\n"
+                for hit in found { out += "\(hit.item.kind.rawValue) | \(hit.item.title) | text=\(hit.byText) meaning=\(hit.byMeaning) cos=\(String(format: "%.2f", Double(hit.cosine))) | \(hit.snippet.prefix(90))\n" }
+            }
+            try? out.write(toFile: path, atomically: true, encoding: .utf8)
+        }
+    }
+
     /// How near in meaning counts as related. Unrelated texts sit around
-    /// 0.3–0.45 with nomic-embed-text; related ones above 0.5.
+    /// 0.4–0.55 with nomic-embed-text on short German texts; related ones above.
     static let minCosine: F32 = 0.5
 
     func text(of id: String) -> String { db.text(id) }

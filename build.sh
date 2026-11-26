@@ -22,8 +22,16 @@ MINIMUM="14.0"
 SWIFTFLAGS=(-c "$CONFIG" --arch "$ARCH")
 [ "$CONFIG" = "release" ] && SWIFTFLAGS+=(-Xswiftc -Osize)
 
+# App Intents (Sources/XoolOS/Xool/JarvisIntent.swift): the build writes out
+# the constant values of everything that conforms to AppIntent & co.
+# (*.swiftconstvalues), and appintentsmetadataprocessor (below) turns them into
+# Metadata.appintents, which is what makes Shortcuts and Spotlight find
+# "Talk to Jarvis".
+TOOLCHAIN="$(dirname "$(dirname "$(dirname "$(xcrun --find swiftc)")")")"
+
 swift build "${SWIFTFLAGS[@]}" --product "$EXECUTABLE"
-BINARY="$(swift build "${SWIFTFLAGS[@]}" --show-bin-path)/$EXECUTABLE"
+BIN_PATH="$(swift build "${SWIFTFLAGS[@]}" --show-bin-path)"
+BINARY="$BIN_PATH/$EXECUTABLE"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
@@ -60,6 +68,28 @@ rm -rf "$ICONSET" "$ICONDOC"
 swift Icon/icon.swift "$ICONSET" "$ICONDOC" > /dev/null
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 rm -rf "$ICONSET" "$ICONDOC"
+
+# Metadata.appintents, from what the compiler wrote out above. Without it the
+# app still runs; Shortcuts just doesn't list its intent.
+CONSTS="$OUT/appintents-constvalues.txt"
+SOURCES="$OUT/appintents-sources.txt"
+CAP="$(echo "$CONFIG" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')"
+find ".build/out/Intermediates.noindex/$EXECUTABLE.build/$CAP" -path "*/$ARCH/*" -name '*.swiftconstvalues' -size +2c > "$CONSTS" 2>/dev/null || true
+find Sources/XoolOS -name '*.swift' > "$SOURCES"
+if [ -s "$CONSTS" ]; then
+  xcrun appintentsmetadataprocessor \
+    --output "$APP/Contents/Resources" \
+    --toolchain-dir "$TOOLCHAIN" \
+    --module-name "$EXECUTABLE" \
+    --sdk-root "$(xcrun --sdk macosx --show-sdk-path)" \
+    --xcode-version "$(xcodebuild -version | awk '/Build version/ {print $3}')" \
+    --platform-family macOS \
+    --deployment-target "$MINIMUM" \
+    --target-triple "$ARCH-apple-macosx$MINIMUM" \
+    --source-file-list "$SOURCES" \
+    --swift-const-vals-list "$CONSTS" \
+    --quiet-warnings || echo "note: App Intents metadata was not written (Shortcuts won't list the intent)"
+fi
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

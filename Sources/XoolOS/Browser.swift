@@ -5005,6 +5005,9 @@ final class Browser: NSObject, ObservableObject {
     /// still comes up for one to be asked about: a private new tab never
     /// asks.
     func launch() {
+        // Xool: Brain, Media and the tab overview lie over the page's card;
+        // a new tab opened under them looked like ⌘T doing nothing.
+        XoolUI.shared.closeViews()
         comeBackIfShut()
         // Again while it is up: put away, as the key that raised it, the way
         // Spotlight's does. What was typed waits for the next ⌘T (see

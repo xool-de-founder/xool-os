@@ -219,11 +219,20 @@ struct LocalSetupCard: View {
 struct VoiceSettingsCard: View {
     @ObservedObject private var voice = VoiceBridge.shared
     @ObservedObject private var setup = LocalSetup.shared
+    @ObservedObject private var entry = JarvisEntry.shared
 
     var body: some View {
         Card {
             Line("Push to talk", "Hold the key and speak to the agent you used last. Let go when you're done") {
                 Segmented(options: [("fn", "fn"), ("optionSpace", "⌥ Space")], selection: $voice.key)
+            }
+            Rule()
+            Line("Talk to Jarvis from any app", "Hold the key and speak; press it briefly to listen until you press it again. Works while Xool OS is in the background") {
+                JarvisKeyBox()
+            }
+            Rule()
+            Line("Menu bar icon", "Click it to talk to Jarvis, right-click for recent threads") {
+                Switch(on: $entry.menuBar)
             }
             Rule()
             Line("Talk over the voice", "Hands-free: start talking and the voice stops at once. Turn off if it hears itself through the speakers") {

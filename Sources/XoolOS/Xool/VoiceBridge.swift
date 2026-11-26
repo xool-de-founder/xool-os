@@ -218,7 +218,7 @@ final class VoiceBridge: ObservableObject {
             forcedJarvis = true
             pressed(true)
             if !holding { forcedJarvis = false }
-        } else if holding, !latched {
+        } else if !down, holding, !latched {
             if Date().timeIntervalSince(jarvisDownAt) < 0.4 { latched = true } else { pressed(false) }
         }
     }
@@ -247,6 +247,7 @@ final class VoiceBridge: ObservableObject {
             interrupt()
             guard let thread = pickThread(), let engine = ensureEngine() else { holding = false; return }
             target = thread
+            Self.log("listening: down, agent \(AgentStore.shared.thread(thread).flatMap { AgentStore.shared.agent($0.agentID)?.name } ?? "?")")
             lastActivity = Date()
             withMicrophone { [weak self] in
                 guard let self, self.holding else { return }
@@ -438,6 +439,20 @@ final class VoiceBridge: ObservableObject {
     }
 
     // MARK: tests
+
+    /// Test and profile runs: a line for XOOL_VOICE_LOG, to see which entry started the voice.
+    static func log(_ line: String) {
+        guard Store.testing || getenv("XOOL_PROFILE") != nil, let path = getenv("XOOL_VOICE_LOG").map({ String(cString: $0) }) else { return }
+        let text = "\(Date().formatted(.iso8601)) \(line)\n"
+        if let handle = FileHandle(forWritingAtPath: path) { handle.seekToEndOfFile(); handle.write(Data(text.utf8)); try? handle.close() }
+        else { try? text.write(toFile: path, atomically: true, encoding: .utf8) }
+    }
+
+    /// Test runs: a WAV file said to Jarvis, as the key, the menu bar and the Intent do.
+    func feedJarvis(file: URL) {
+        forcedJarvis = true
+        feed(file: file)
+    }
 
     /// Test runs: a WAV file in place of the microphone.
     func feed(file: URL) {

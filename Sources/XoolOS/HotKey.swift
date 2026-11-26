@@ -98,3 +98,59 @@ enum HotKey {
         }, 1, &type, nil, &handler)
     }
 }
+
+// MARK: - Jarvis' key (Xool, docs/PLAN.md 8, G)
+
+/// "JRVS": a second key of the app's own, which comes when it is pressed and
+/// again when it is let go (push to talk), from whichever app is in front.
+private let jarvisSignature: OSType = 0x4A52_5653
+
+/// ⌥⌘J by default (see JarvisEntry.swift). The same Carbon call as the
+/// launcher's: nothing to ask permission for, and no key but this one is
+/// seen. It stays registered for as long as the app runs, background included.
+@MainActor
+enum VoiceHotKey {
+    private static var registered: EventHotKeyRef?
+    private static var handler: EventHandlerRef?
+    private static var current: (code: UInt32, modifiers: UInt32)?
+
+    /// Called on the main thread when the key goes down (true) and up (false).
+    static var changed: ((Bool) -> Void)?
+
+    @discardableResult
+    static func set(code: UInt16, modifiers: UInt32) -> OSStatus {
+        if let current, registered != nil, current.code == UInt32(code), current.modifiers == modifiers { return noErr }
+        clear()
+        installHandler()
+        var key: EventHotKeyRef?
+        let id = EventHotKeyID(signature: jarvisSignature, id: 2)
+        let status = RegisterEventHotKey(UInt32(code), modifiers, id, GetApplicationEventTarget(), 0, &key)
+        guard status == noErr, let key else { return status == noErr ? OSStatus(eventInternalErr) : status }
+        registered = key
+        current = (UInt32(code), modifiers)
+        return noErr
+    }
+
+    static func clear() {
+        if let registered { UnregisterEventHotKey(registered) }
+        registered = nil
+        current = nil
+    }
+
+    static var isSet: Bool { registered != nil }
+
+    private static func installHandler() {
+        guard handler == nil else { return }
+        var types = [EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed)),
+                     EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyReleased))]
+        InstallEventHandler(GetApplicationEventTarget(), { _, event, _ in
+            var id = EventHotKeyID()
+            let status = GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID),
+                                           nil, MemoryLayout<EventHotKeyID>.size, nil, &id)
+            guard status == noErr, id.signature == jarvisSignature, let event else { return OSStatus(eventNotHandledErr) }
+            let down = GetEventKind(event) == UInt32(kEventHotKeyPressed)
+            DispatchQueue.main.async { MainActor.assumeIsolated { VoiceHotKey.changed?(down) } }
+            return noErr
+        }, 2, &types, nil, &handler)
+    }
+}

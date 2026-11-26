@@ -401,6 +401,38 @@ Feedback aus dem Test nach Phase 7 (2026-11-26). Referenzbilder: `docs/review/p8
 - Modell-Wahl lebt im Eingabefeld und im Thread-Kopf.
 - Neue Funktionen bekommen einen Eintrag in der Sidebar und öffnen im Inhaltsbereich. Sie ändern diese Struktur nicht. Abweichungen nur nach Rückfrage.
 
+### Phase 9 – Jarvis spricht: echte Duplex-Stimme, einsatzbereit
+
+Anlass: Test nach Phase 8. Diktat kommt als Text im Jarvis-Thread an, Jarvis antwortet aber nur schriftlich und behauptet sogar, er könne keine Sprache empfangen. Ursachen laut Befund: Der Voice-Sidecar ist im echten Profil **nicht installiert** (`~/Library/Application Support/Xool/voice` fehlt), deshalb läuft nur Apple-Diktat ohne Sprachausgabe. Außerdem weiß Jarvis' System-Prompt nicht, dass er ein Sprachassistent ist. Ziel: Man spricht mit Jarvis wie mit `jarvis_stimme` im Terminal (jarvis-on-nod), nur in der App.
+
+**A. Einsatzbereit ohne Handarbeit**
+- Beim ersten Gespräch mit Jarvis, falls die Stimme fehlt: Karte im Jarvis-Büro „Stimme einrichten (ca. X GB)“. Ein Klick startet `xool-setup.sh --only-voice` mit Fortschritt (venv, mlx-whisper, Silero-VAD, Piper-Stimme `de_DE` hoher Qualität). Danach startet der Sidecar automatisch mit der App und bleibt warm (Modelle vorgeladen).
+- Statusanzeige im Büro und in der Menüleiste: bereit / hört zu / denkt / spricht / Stimme fehlt (mit Knopf).
+- Fallback, wenn der Sidecar nicht läuft: **native Kette** (SpeechAnalyzer bzw. SFSpeechRecognizer + AVSpeechSynthesizer mit der besten deutschen Premium-Stimme), aber **immer mit Sprachausgabe**. Jarvis antwortet nie stumm auf gesprochene Eingaben.
+
+**B. Jarvis weiß, dass er spricht**
+- System-Prompt für Sprach-Turns: „Du bist Jarvis, ein Sprachassistent. Der Nutzer spricht mit dir, deine Antwort wird vorgelesen.“ Kurze, natürliche Sätze, kein Markdown, keine Listen, Zahlen und Links sprechbar (`clean_for_speech`). Im Thread steht der Text trotzdem formatiert.
+- Antwort im Thread und gleichzeitig gesprochen. Satz für Satz, während das Modell weiterschreibt.
+
+**C. Duplex wie im Terminal**
+- **Gesprächsmodus** (Knopf im Büro, Menüleiste, `⌥⌘J` kurz drücken): Mikrofon bleibt offen, VAD erkennt Satzende (Silero, Pausenlänge einstellbar), kein Knopfdrücken pro Satz. Halten von `⌥⌘J` bzw. `fn` = Push-to-Talk wie bisher.
+- **Barge-in:** Spricht man dazwischen, verstummt Jarvis sofort und die Generierung bricht ab. **Echo-Unterdrückung** über `AVAudioEngine` Voice Processing (`setVoiceProcessingEnabled(true)`) bzw. im Sidecar, damit Jarvis sich nicht selbst unterbricht.
+- **Vorausdenken** (`vorausdenken.py`/Thinker): In Pausen bereitet Jarvis Notizen vor, optional ein kurzes „Übrigens …“.
+
+**D. Weiß, dass ich ihn meine (Session-Modell)**
+- **Gesprächssitzung:** Nach „Jarvis …“ oder nach einer Antwort bleibt eine Sitzung offen (Standard 20 s, einstellbar). Folgefragen gehen ohne Weckwort an ihn.
+- **Adressaten-Entscheidung:** Das kleine `DecisionModel` bekommt den Satz plus die letzten Turns und entscheidet: „an Jarvis“ / „nicht an Jarvis“ (Gespräch mit jemand anderem, Selbstgespräch, Fernseher). Nicht gemeint → ignorieren, nichts sagen.
+- Optional **Weckwort „Jarvis“** lokal (openWakeWord, Apache-2.0, eigenes Modell oder generisch), standardmäßig aus, in den Einstellungen an.
+
+**E. Brückenphrasen-Bibliothek (200–300) und Sofort-Einschätzung**
+- `bruecken.py` auf **250+ deutsche Gesprächsanfänge** ausbauen, nach Situation gruppiert. Zum Beispiel: Verstanden („Okay, verstehe.“, „Alles klar.“), Nachdenken („Hm, lass mich kurz überlegen.“), Lob/Idee („Das ist eine richtig gute Idee.“, „Spannender Punkt.“, „Großartiger Gedanke.“), Überraschung („Oh, das hatte ich nicht bedacht.“), Befehl („Mach ich.“, „Bin dran.“), **Websuche** („Moment, ich schau kurz im Netz nach.“), **Browser** („Ich öffne das mal.“), **Brain** („Ich schau in deine Notizen.“), Rückfrage, Entschuldigung, Abschied. Alle beim Start einmal vertont und auf Platte gecacht, Abspielen kostet 0 ms. Keine Wiederholung derselben Phrase in kurzer Folge.
+- Das `DecisionModel` schätzt **sofort** (< 300 ms) ein: Reicht das Wissen des Modells, oder braucht es `web_search`, Browser oder Brain? Daraus folgen die Kategorie der Brückenphrase (z. B. „Ich schau kurz nach“) und die Tools für den Lauf. Die Phrase wird nur gespielt, wenn der erste echte Satz nicht schneller da ist.
+- Ziel-Latenzen: Brückenphrase < 300 ms nach Sprechende, erster echter Satz < 1.5 s (schnelles MoE-Modell zuerst, `MODEL_PREFERENCE` aus jarvis-on-nod), Abbruch bei Barge-in < 150 ms.
+
+**F. Open-Source-Stack** (alles lokal): mlx-whisper (Apple Silicon) bzw. whisper.cpp, Silero-VAD, Piper (de_DE, hohe Qualität), openWakeWord (optional), Ollama für LLM und Entscheider. Lizenzen in `THIRD_PARTY_NOTICES.md`. Später prüfen (nicht in dieser Phase): ein echtes Full-Duplex-Sprachmodell (z. B. Kyutai Moshi) als Alternative.
+
+**Fertig, wenn:** auf dem echten Profil einmal „Stimme einrichten“ durchläuft und der Sidecar danach mit der App startet. Jarvis antwortet auf gesprochene Fragen hörbar auf Deutsch, Satz für Satz, ohne Markdown-Vorlesen. Gesprächsmodus ohne Knopf pro Satz. Barge-in stoppt ihn. Nicht an ihn gerichtete Sätze ignoriert er. Brückenphrasen passen zur Situation (Websuche angekündigt). Latenzen gemessen und in der Status-Notiz. Automatisiert belegt mit WAV-Eingaben (inkl. Barge-in und „nicht gemeint“), **echter Mikrofon-Test als Checkliste für den Nutzer** in der Status-Notiz. Release-Build grün, committet und gepusht. Layout-Vertrag 8.1 bleibt unverändert.
+
 ---
 
 ## 7. Qualitätsboden (gilt für jede Phase)

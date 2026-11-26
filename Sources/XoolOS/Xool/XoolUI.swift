@@ -94,6 +94,13 @@ final class XoolUI: ObservableObject {
         showMedia.toggle()
         if showMedia { showTabs = false; showBrain = false }
     }
+    /// Brain, Media and the tab overview put away: whatever opens next is seen.
+    func closeViews() {
+        if showTabs { showTabs = false }
+        if showBrain { showBrain = false }
+        if showMedia { showMedia = false }
+    }
+
     func toggleKeys() {
         if showKeys { showKeys = false } else if Date().timeIntervalSince(keysClosedAt) > 0.25 { showKeys = true }
     }
@@ -127,6 +134,11 @@ extension XoolUI {
             case "send":
                 if let id = front, pieces.count > 1 { ChatRuntime.shared.send(pieces[1], in: id) }
             case "agents": showAgents = true
+            // Test and profile runs only: the overview toggled after n seconds
+            // (a picture sequence of the flight), and ⌘T's new tab.
+            case "agentstoggle" where Store.testing || getenv("XOOL_PROFILE") != nil:
+                let seconds = Double(pieces.count > 1 ? pieces[1] : "") ?? 4
+                DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { [weak self] in self?.toggleAgents() }
             case "tabs": showTabs = true
             case "models": showModels = true
             case "brain": showBrain = true
@@ -191,6 +203,35 @@ extension XoolUI {
                         controller.run(script) { try? $0.write(toFile: k[2], atomically: true, encoding: .utf8) }
                     }
                 }
+            // Test and profile runs only: a key pressed in the front window, as
+            // the keyboard does it, after n seconds, then the tab count and the
+            // active tab's address written to a file: keyevent:<seconds>|<key>|<result file>
+            // (key: "cmd-t", "opt-cmd-j" …).
+            case "keyevent" where Store.testing || getenv("XOOL_PROFILE") != nil:
+                let k = (pieces.count > 1 ? pieces[1] : "").split(separator: "|", maxSplits: 2).map(String.init)
+                if k.count == 3 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + (Double(k[0]) ?? 4)) {
+                        let parts = k[1].split(separator: "-").map(String.init)
+                        var flags: NSEvent.ModifierFlags = []
+                        for m in parts.dropLast() {
+                            switch m { case "cmd": flags.insert(.command); case "opt": flags.insert(.option); case "shift": flags.insert(.shift); case "ctrl": flags.insert(.control); default: break }
+                        }
+                        let key = parts.last ?? "t"
+                        let codes: [String: UInt16] = ["t": 17, "j": 38, "n": 45, "k": 40]
+                        let window = Browsers.frontBrowser.window
+                        let before = Browsers.frontBrowser.tabs.count
+                        if let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags, timestamp: ProcessInfo.processInfo.systemUptime,
+                                                        windowNumber: window?.windowNumber ?? 0, context: nil, characters: key, charactersIgnoringModifiers: key,
+                                                        isARepeat: false, keyCode: codes[key] ?? 17) {
+                            NSApp.sendEvent(event)
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                            let b = Browsers.frontBrowser
+                            let line = "key \(k[1]): tabs \(before) -> \(b.tabs.count); active blank=\(b.active?.isBlank ?? false); responder=\(String(describing: b.window?.firstResponder))\n"
+                            try? line.write(toFile: k[2], atomically: true, encoding: .utf8)
+                        }
+                    }
+                }
             case "settings":
                 Browsers.frontBrowser.settingsPage = SettingsPanel.Page.named(pieces.count > 1 ? pieces[1] : "models") ?? .models
                 Browsers.frontBrowser.tuning = true
@@ -226,6 +267,23 @@ extension XoolUI {
             // Test runs only: a WAV file in place of the microphone, said to the front agent.
             case "voicewav" where Store.testing:
                 if pieces.count > 1 { VoiceBridge.shared.feed(file: URL(fileURLWithPath: pieces[1])) }
+            // Test and profile runs only: Jarvis' entries. `jarvislisten` is a click on
+            // the menu-bar icon; `jarvisfeed:<wav>` says a WAV file to him; `jarvisstatus:<s>|<file>`
+            // writes whether the global key and the icon are in place.
+            case "jarvislisten" where Store.testing || getenv("XOOL_PROFILE") != nil:
+                VoiceBridge.shared.listenToJarvis()
+            case "jarvisfeed" where Store.testing || getenv("XOOL_PROFILE") != nil:
+                if pieces.count > 1 { VoiceBridge.shared.feedJarvis(file: URL(fileURLWithPath: pieces[1])) }
+            case "jarvisstatus" where Store.testing || getenv("XOOL_PROFILE") != nil:
+                let k = (pieces.count > 1 ? pieces[1] : "").split(separator: "|", maxSplits: 1).map(String.init)
+                if k.count == 2 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + (Double(k[0]) ?? 4)) {
+                        let entry = JarvisEntry.shared
+                        let frame = entry.statusButton.flatMap { $0.window?.frame }.map { "\($0)" } ?? "none"
+                        let line = "hotkey set=\(VoiceHotKey.isSet) key=\(entry.choice.combo.display) refusal=\(entry.refusal ?? "none") statusitem=\(entry.statusButton != nil) frame=\(frame)\n"
+                        try? line.write(toFile: k[1], atomically: true, encoding: .utf8)
+                    }
+                }
             case "voiceinterrupt" where Store.testing:
                 let seconds = Double(pieces.count > 1 ? pieces[1] : "") ?? 5
                 DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { VoiceBridge.shared.interrupt() }

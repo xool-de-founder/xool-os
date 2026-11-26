@@ -90,6 +90,7 @@ struct XoolShell<Content: View>: View {
         .task {
             await models.refresh()
             VoiceBridge.shared.install()
+            JarvisEntry.shared.install()
             XoolUI.shared.applyLaunchRequest()
         }
     }

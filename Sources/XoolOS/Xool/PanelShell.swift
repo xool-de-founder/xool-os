@@ -34,8 +34,13 @@ extension View {
 final class PanelFlight: ObservableObject {
     static let shared = PanelFlight()
     static let space = "xoolShell"
-    static let duration = 0.32
-    static let stagger = 0.03
+    /// Test and profile runs only: XOOL_FLIGHT_SLOW=6 plays it six times slower, for a picture sequence.
+    private static let slow: Double = {
+        guard Store.testing || getenv("XOOL_PROFILE") != nil, let raw = getenv("XOOL_FLIGHT_SLOW") else { return 1 }
+        return Double(String(cString: raw)) ?? 1
+    }()
+    static let duration = 0.32 * slow
+    static let stagger = 0.03 * slow
 
     enum Phase { case closed, opening, open, closing }
 
@@ -149,7 +154,7 @@ struct PanelColumn<Content: View>: View {
         .onAppear { keep = open }
         .onChange(of: open) { _, now in
             if now { keep = true } else {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { if !open { keep = false } }
+                DispatchQueue.main.asyncAfter(deadline: .now() + PanelFlight.duration + 0.13) { if !open { keep = false } }
             }
         }
     }

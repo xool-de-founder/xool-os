@@ -33,8 +33,9 @@ struct ThreadView: View {
                 Spacer()
             }
         }
-        .padding(.top, docked ? 28 : 0)
-        .background(Theme.raised)
+        // Docked, it is part of the page's card (no ground of its own).
+        .padding(.top, docked ? 4 : 0)
+        .background(docked ? Color.clear : Theme.raised)
         .onAppear { typing = true }
         .onChange(of: ui.front) { _, _ in typing = true }
     }

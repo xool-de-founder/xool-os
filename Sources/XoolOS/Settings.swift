@@ -1156,10 +1156,9 @@ struct SettingsPanel: View {
 
     private var aboutHeader: some View {
         HStack(spacing: 14) {
-            Logomark()
-                .fill(Palette.ink, style: FillStyle(eoFill: true))
-                .aspectRatio(Logomark.canvas.width / Logomark.canvas.height, contentMode: .fit)
-                .frame(height: 34)
+            XoolMark(size: 40, animated: true)
+                .frame(width: 40, height: 40)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
                 Text("Xool OS")
                     .font(.system(size: 15, weight: .semibold))

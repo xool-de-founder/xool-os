@@ -30,14 +30,16 @@ enum Palette {
     /// The same colours for the AppKit corners of the app — a text field's
     /// ink, a window's background — which want an NSColor and keep it.
     enum NS {
-        static let ground = pair(1.0, 0.11)
-        static let ink = pair(0.09, 0.93)
-        static let muted = pair(0.55, 0.58)
-        static let faint = pair(0.83, 0.32)
-        static let hairline = pair(0.91, 0.20)
-        static let wash = pair(0.937, 0.175)
-        static let hover = pair(0.965, 0.15)
-        static let frame = pair(0.955, 0.075)
+        // Xool's tokens (Theme.swift): the page is `surface`, everything the
+        // window draws around it `canvas`.
+        static let ground = Theme.NS.surface
+        static let ink = Theme.NS.text
+        static let muted = Theme.NS.textMuted
+        static let faint = Theme.NS.faint
+        static let hairline = Theme.NS.line
+        static let wash = Theme.NS.raised
+        static let hover = Theme.NS.hover
+        static let frame = Theme.NS.canvas
         /// The resting traffic lights, drawn by hand when the app is behind.
         static let resting = pair(0.80, 0.30)
         static let safe = tint(light: (0.08, 0.50, 0.24), dark: (0.29, 0.87, 0.50))

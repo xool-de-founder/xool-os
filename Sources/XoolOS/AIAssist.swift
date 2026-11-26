@@ -413,15 +413,28 @@ struct AISettings: View {
     @XState private var models: [String] = []
     @XState private var looking = false
     @ObservedObject private var engine = AIEngine.shared
+    @ObservedObject private var xool = XoolUI.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
+            Card {
+                Line("Threads open as", "Where an agent's conversation appears when you click its pill") {
+                    Picker("", selection: Binding(get: { xool.mode }, set: { xool.mode = $0 })) {
+                        ForEach(ThreadMode.allCases) { Text($0.title).tag($0) }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .fixedSize()
+                    .accessibilityLabel("Threads open as")
+                }
+            }
             Card {
                 Line("Use AI on pages", "Summarize a page, or ask about it, from the View menu. Nothing is sent until you ask") {
                     Switch(on: $prefs.ai)
                 }
             }
-            if prefs.ai {
+            // The agents use these providers whether or not the page tools are on.
+            Group {
                 Card {
                     Line("Where it runs", place) {
                         if drawn {

@@ -14,6 +14,6 @@ for w in l where (w["kCGWindowOwnerName"] as? String ?? "") == "Xool OS" || (w["
 print(best.0)
 SW
 )
-mkdir -p docs/shots
-screencapture -x -o -l "$ID" "docs/shots/$1.png"
-echo "docs/shots/$1.png"
+OUT="${SHOTS_DIR:-docs/shots}"; mkdir -p "$OUT"
+screencapture -x -o -l "$ID" "$OUT/$1.png"
+echo "$OUT/$1.png"

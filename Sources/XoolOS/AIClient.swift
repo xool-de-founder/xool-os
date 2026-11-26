@@ -156,6 +156,10 @@ final class AIClient: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
             // A limit on the answer, for every one: OpenAI's own models take
             // it under its newer name.
             body[provider == .openAI ? "max_completion_tokens" : "max_tokens"] = 2048
+            // A thinking model on this Mac (Qwen3.5, gpt-oss) would spend the
+            // whole limit on its reasoning and answer nothing: chat answers
+            // directly. Models without thinking ignore the field.
+            if provider == .ollama || provider == .lmStudio { body["reasoning_effort"] = "none" }
         case .anthropic:
             url = provider.base.appendingPathComponent("messages")
             body = [

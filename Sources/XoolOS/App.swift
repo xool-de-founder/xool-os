@@ -449,6 +449,8 @@ struct SearchApp: App {
                     .shortcut("app.settings")
                 Button("Passwords…") { browser.managing = true }
                     .shortcut("app.passwords")
+                Button("Tabs Overview") { XoolUI.shared.toggleTabs() }
+                    .keyboardShortcut("\\", modifiers: [.command, .shift])
             }
             QuitAndHelp()
         }
@@ -2219,9 +2221,11 @@ struct SceneRoot: View {
     @ObservedObject var slot: SceneSlot
 
     var body: some View {
-        ContentView(browser: slot.browser)
-            .id(ObjectIdentifier(slot.browser))
-            .onAppear { Browsers.restoreOnce() }
+        XoolShell(browser: slot.browser) {
+            ContentView(browser: slot.browser)
+                .id(ObjectIdentifier(slot.browser))
+                .onAppear { Browsers.restoreOnce() }
+        }
     }
 }
 

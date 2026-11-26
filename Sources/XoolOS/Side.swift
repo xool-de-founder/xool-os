@@ -19,6 +19,8 @@ struct SideBar: View {
     @ObservedObject var browser: Browser
     @ObservedObject var prefs: Preferences
     @ObservedObject private var agents = AgentControl.shared
+    @ObservedObject private var xoolStore = AgentStore.shared
+    private var xoolAgents: [Agent] { Array(xoolStore.agents.prefix(SidebarAgents.maxRows)) }
     @Environment(\.colorScheme) private var colourScheme
     /// On the window's ground, beside the page's card (see CardEdge): the
     /// ground's colour and no edge of its own, the card's edge being the line.
@@ -304,7 +306,8 @@ struct SideBar: View {
                 $0.modifier(EndInset(bottom: footHeight))
             }
             .padding(.bottom, (browser.player == nil ? 0 : rowHeight + SideBar.playerGap)
-                     + (agentHere && !icons ? agentCard + SideBar.playerGap : 0))
+                     + (agentHere && !icons ? agentCard + SideBar.playerGap : 0)
+                     + (xoolAgents.isEmpty || icons ? 0 : SidebarAgents.height(count: xoolAgents.count) + SideBar.playerGap))
 
             VStack(spacing: 0) {
                 Spacer()
@@ -315,6 +318,12 @@ struct SideBar: View {
                         .padding(.horizontal, 10)
                         .padding(.bottom, SideBar.playerGap)
                         .transition(.opacity)
+                }
+                // Xool's agents: a colour and a name each; a click opens its thread.
+                if !xoolAgents.isEmpty, !icons {
+                    SidebarAgents()
+                        .padding(.horizontal, 10)
+                        .padding(.bottom, SideBar.playerGap)
                 }
                 if let tab = browser.player {
                     PlayerRow(browser: browser, prefs: prefs, tab: tab)

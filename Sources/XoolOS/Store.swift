@@ -199,7 +199,11 @@ enum Store {
     static let folder: URL = {
         let support = FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let home = support.appendingPathComponent(world.map { "Xool (\($0))" } ?? "Xool", isDirectory: true)
+        // XOOL_PROFILE=name: a visible run with a folder of its own, for
+        // screenshots and demos that must not touch (or show) a real session.
+        let profile = getenv("XOOL_PROFILE").map { String(cString: $0).filter { $0.isLetter || $0.isNumber || $0 == "-" } }
+        let home = support.appendingPathComponent(world.map { "Xool (\($0))" }
+                                                    ?? profile.flatMap { $0.isEmpty ? nil : "Xool (\($0))" } ?? "Xool", isDirectory: true)
         return home
     }()
 

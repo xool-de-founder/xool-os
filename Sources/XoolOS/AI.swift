@@ -16,7 +16,7 @@ import Security
 /// a setting left on by a test build reads as off. The code stays; this is
 /// the one line that brings it back.
 enum AI {
-    static let shipped = false
+    static let shipped = true
 }
 
 /// Where the answers come from.
@@ -116,19 +116,29 @@ enum AIKeys {
 
     private static func account(_ provider: AIProvider) -> String { "\(provider.rawValue)@\(provider.host)" }
 
+    /// The data protection keychain needs the signed release's access group.
+    /// A copy built here, ad-hoc signed, lacks it (errSecMissingEntitlement)
+    /// and keeps its keys in the login keychain instead: still the keychain,
+    /// still this Mac only, still never in a file of ours.
+    private static let legacy: Bool = {
+        let probe: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+                                    kSecUseDataProtectionKeychain as String: true,
+                                    kSecAttrService as String: "com.xool.os.ai.probe",
+                                    kSecReturnAttributes as String: true]
+        return SecItemCopyMatching(probe as CFDictionary, nil) == errSecMissingEntitlement
+    }()
+
     private static func query(_ provider: AIProvider) -> [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword,
-         kSecUseDataProtectionKeychain as String: true,
-         kSecAttrService as String: service,
-         kSecAttrAccount as String: account(provider)]
+        var q: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+                                kSecAttrService as String: service,
+                                kSecAttrAccount as String: account(provider)]
+        if !legacy { q[kSecUseDataProtectionKeychain as String] = true }
+        return q
     }
 
     /// Whether a key can be kept at all by this copy of Search.
     static var available: Bool {
-        if Store.testing { return true }
-        var asked = query(.anthropic)
-        asked[kSecReturnAttributes as String] = true
-        return SecItemCopyMatching(asked as CFDictionary, nil) != errSecMissingEntitlement
+        true
     }
 
     static func save(_ key: String, for provider: AIProvider) -> Saved {
@@ -143,10 +153,12 @@ enum AIKeys {
         item[kSecValueData as String] = Data(key.utf8)
         item[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         item[kSecAttrSynchronizable as String] = false
-        item[kSecAttrLabel as String] = "Search — \(provider.name) key"
+        item[kSecAttrLabel as String] = "Xool OS — \(provider.name) key"
         // The last four, to tell keys apart in Settings without reading one.
         item[kSecAttrComment as String] = String(key.suffix(4))
-        switch SecItemAdd(item as CFDictionary, nil) {
+        item[kSecAttrLabel as String] = "Xool OS — \(provider.name) key"
+        let status = SecItemAdd(item as CFDictionary, nil)
+        switch status {
         case errSecSuccess: return .kept
         case errSecMissingEntitlement: return .unavailable
         default: return .failed

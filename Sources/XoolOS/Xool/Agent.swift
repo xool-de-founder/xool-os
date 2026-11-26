@@ -33,6 +33,8 @@ struct ChatMessage: Identifiable, Codable, Equatable {
     var role: Role
     var text: String
     var failed: String?
+    /// The model that answered, for an assistant message.
+    var model: String?
     var date = Date()
 }
 

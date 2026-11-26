@@ -320,3 +320,111 @@ final class AIClient: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
         }
     }
 }
+
+// MARK: - Checking a provider, and Ollama's own API (Xool OS, Phase 2)
+
+extension AIClient {
+    /// What "Test connection" found.
+    enum Check: Equatable {
+        case ok(String)
+        case noKey
+        case refused
+        case unreachable(String)
+
+        var isOK: Bool { if case .ok = self { return true }; return false }
+    }
+
+    /// Asks a provider for its list of models: with the key for a cloud
+    /// provider, to its own host only (same rules as a chat request), and
+    /// without a key for an app on this Mac.
+    func check(_ provider: AIProvider, key: String?) async -> Check {
+        if provider == .thisMac { return .ok("Built in") }
+        if provider.isLocal {
+            let names = await localModels(provider)
+            return names.isEmpty ? .unreachable("\(provider.name) isn't running, or has no model yet. Start \(provider.name)")
+                                 : .ok("\(names.count) model\(names.count == 1 ? "" : "s")")
+        }
+        guard let key, !key.isEmpty else { return .noKey }
+        let url = provider.base.appendingPathComponent("models")
+        guard Self.allowed(url, for: provider) else { return .unreachable(AIError.refusedHost.localizedDescription) }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 10
+        switch provider.wire {
+        case .anthropic:
+            request.setValue(key, forHTTPHeaderField: "x-api-key")
+            request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        case .gemini: request.setValue(key, forHTTPHeaderField: "x-goog-api-key")
+        case .openAI: request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        }
+        do {
+            let (data, response) = try await session.data(for: request, delegate: self)
+            guard let http = response as? HTTPURLResponse else { return .unreachable("The answer couldn't be read.") }
+            switch http.statusCode {
+            case 200..<300: return .ok("Key accepted")
+            case 401, 403: return .refused
+            default:
+                let said = Self.said(data, hiding: key)
+                return .unreachable(said.isEmpty ? "\(provider.name) answered \(http.statusCode)." : said)
+            }
+        } catch let error as URLError {
+            return .unreachable(Self.reason(error, provider))
+        } catch {
+            return .unreachable("\(provider.name) couldn't be reached.")
+        }
+    }
+
+    /// Ollama's own API (not the OpenAI-shaped one): one JSON answer. Only
+    /// ever to this Mac.
+    func ollama(_ path: String, method: String = "GET", body: [String: Any]? = nil, timeout: TimeInterval = 3) async -> [String: Any]? {
+        guard let request = Self.ollamaRequest(path, method: method, body: body, timeout: timeout),
+              let (data, response) = try? await session.data(for: request, delegate: self),
+              (response as? HTTPURLResponse)?.statusCode == 200
+        else { return nil }
+        return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+    }
+
+    /// Ollama's streams are one JSON object per line (a pull's progress).
+    func ollamaStream(_ path: String, body: [String: Any]) -> AsyncThrowingStream<[String: Any], Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    guard let request = Self.ollamaRequest(path, method: "POST", body: body, timeout: 3600) else {
+                        throw AIError.refusedHost
+                    }
+                    let (bytes, response) = try await session.bytes(for: request, delegate: self)
+                    guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                        throw AIError.http((response as? HTTPURLResponse)?.statusCode ?? 0, "")
+                    }
+                    for try await line in bytes.lines {
+                        guard let json = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any] else { continue }
+                        if let said = json["error"] as? String { throw AIError.http(500, Self.scrub(String(said.prefix(300)), hiding: nil)) }
+                        continuation.yield(json)
+                    }
+                    continuation.finish()
+                } catch is CancellationError {
+                    continuation.finish()
+                } catch let error as URLError where error.code == .cancelled {
+                    continuation.finish()
+                } catch let error as URLError {
+                    continuation.finish(throwing: AIError.unreachable(Self.reason(error, .ollama)))
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    private static func ollamaRequest(_ path: String, method: String, body: [String: Any]?, timeout: TimeInterval) -> URLRequest? {
+        let url = AIProvider.ollama.base.deletingLastPathComponent().appendingPathComponent(path)
+        guard allowed(url, for: .ollama) else { return nil }
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.timeoutInterval = timeout
+        if let body {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        }
+        return request
+    }
+}

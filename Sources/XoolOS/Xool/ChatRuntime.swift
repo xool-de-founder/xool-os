@@ -30,34 +30,54 @@ final class ChatRuntime: ObservableObject {
             $0.messages.append(ChatMessage(role: .user, text: text))
             $0.messages.append(ChatMessage(role: .assistant, text: ""))
         }
-        guard let choice = ModelStore.shared.resolve(agent), let provider = choice.aiProvider else {
-            fail(threadID, "No model is chosen. Pick one in the bar below, or start Ollama.")
-            return
-        }
-        guard !(provider.isLocal == false && AIKeys.key(for: provider) == nil) else {
-            fail(threadID, "No key for \(provider.name). Add it in Settings › AI.")
-            return
-        }
         let history = (store.thread(threadID)?.messages ?? [])
             .dropLast()
             .filter { !$0.text.isEmpty }
             .map { AIMessage(role: $0.role == .user ? .user : .assistant, text: $0.text) }
-        let key = provider.isLocal ? nil : AIKeys.key(for: provider)
-        let stream: AsyncThrowingStream<String, Error> = provider == .thisMac
-            ? AIEngine.shared.stream(system: Self.systemPrompt(for: agent), messages: Array(history))
-            : AIClient.shared.stream(provider, model: choice.model, system: Self.systemPrompt(for: agent),
-                                     messages: Array(history), key: key)
+        let system = Self.systemPrompt(for: agent)
         thinking.insert(threadID)
         tasks[threadID] = Task { @MainActor [weak self] in
-            do {
-                for try await piece in stream {
-                    AgentStore.shared.mutate(threadID) { $0.messages[$0.messages.count - 1].text += piece }
-                    if (AgentStore.shared.thread(threadID)?.messages.last?.text.count ?? 0) > 32_000 { break }
-                }
-                self?.finish(threadID, error: nil, provider: provider)
-            } catch {
-                self?.finish(threadID, error: error, provider: provider)
+            // A small local model says whether this needs tools and whether
+            // the cloud is worth it; any trouble is the standard route.
+            let decision = await DecisionModel.decide(text, recent: history.dropLast().map(\.text))
+            guard !Task.isCancelled else { return }
+            guard let route = ModelRouter.shared.route(decision, agent: agent) else {
+                self?.fail(threadID, "No model is chosen. Pick one in the bar below, or start Ollama.")
+                self?.finish(threadID, error: nil, provider: nil, quiet: true)
+                return
             }
+            let attempts = [route.primary] + (route.fallback.map { [$0] } ?? [])
+            var lastProvider: AIProvider?
+            for (index, choice) in attempts.enumerated() {
+                guard let provider = choice.aiProvider else { continue }
+                lastProvider = provider
+                let key = provider.isLocal ? nil : AIKeys.key(for: provider)
+                if !provider.isLocal && key == nil {
+                    self?.fail(threadID, "No key for \(provider.name). Add it in Settings › Models.")
+                    self?.finish(threadID, error: nil, provider: nil, quiet: true)
+                    return
+                }
+                let stream: AsyncThrowingStream<String, Error> = provider == .thisMac
+                    ? AIEngine.shared.stream(system: system, messages: history)
+                    : AIClient.shared.stream(provider, model: choice.model, system: system, messages: history, key: key)
+                AgentStore.shared.mutate(threadID) { $0.messages[$0.messages.count - 1].model = choice.label }
+                do {
+                    for try await piece in stream {
+                        AgentStore.shared.mutate(threadID) { $0.messages[$0.messages.count - 1].text += piece }
+                        if (AgentStore.shared.thread(threadID)?.messages.last?.text.count ?? 0) > 32_000 { break }
+                    }
+                    self?.finish(threadID, error: nil, provider: provider)
+                    return
+                } catch {
+                    // A local app that isn't there, and nothing said yet: the
+                    // cloud, when allowed and a key is kept.
+                    let said = !(AgentStore.shared.thread(threadID)?.messages.last?.text.isEmpty ?? true)
+                    if case AIError.unreachable = error, !said, index < attempts.count - 1 { continue }
+                    self?.finish(threadID, error: error, provider: provider)
+                    return
+                }
+            }
+            self?.finish(threadID, error: nil, provider: lastProvider)
         }
     }
 
@@ -66,10 +86,11 @@ final class ChatRuntime: ObservableObject {
         finish(threadID, error: nil, provider: nil)
     }
 
-    private func finish(_ id: UUID, error: Error?, provider: AIProvider?) {
+    private func finish(_ id: UUID, error: Error?, provider: AIProvider?, quiet: Bool = false) {
         tasks[id] = nil
         thinking.remove(id)
-        if let error { fail(id, Self.explain(error, provider: provider)) }
+        if quiet {}
+        else if let error { fail(id, Self.explain(error, provider: provider)) }
         else {
             // An empty answer with no error is a model that said nothing.
             AgentStore.shared.mutate(id) {
@@ -97,7 +118,7 @@ final class ChatRuntime: ObservableObject {
             return "\(provider.name) isn't running. Start \(provider.name), then send again."
         }
         if case AIError.http(let status, _) = error, status == 401 || status == 403, let provider {
-            return "\(provider.name) refused the key. Check it in Settings › AI."
+            return "\(provider.name) refused the key. Check it in Settings › Models."
         }
         return error.localizedDescription
     }

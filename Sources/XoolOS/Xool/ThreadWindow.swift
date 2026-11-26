@@ -141,6 +141,9 @@ struct ThreadView: View {
                 } else if message.failed == nil {
                     Text("…").font(Theme.body).foregroundStyle(Theme.textMuted)
                 }
+                if let model = message.model, !message.text.isEmpty {
+                    Text(model).font(Theme.caption).foregroundStyle(Theme.faint)
+                }
                 if let failed = message.failed {
                     Label(failed, systemImage: "exclamationmark.triangle")
                         .font(Theme.small).foregroundStyle(Theme.text)

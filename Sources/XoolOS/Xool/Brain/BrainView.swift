@@ -20,8 +20,11 @@ struct BrainView: View {
     @XState private var writing = false
     @FocusState private var searching: Bool
 
+    /// The Brain is what is written; pictures, video and audio are Media's.
+    private var written: [BrainItem] { store.items.filter { !$0.isMedia } }
+
     private var shown: [BrainItem] {
-        store.items.filter { kind == nil || $0.kind == kind }
+        written.filter { kind == nil || $0.kind == kind }
     }
 
     private var selected: BrainItem? {
@@ -116,7 +119,7 @@ struct BrainView: View {
 
     private func chip(_ title: String, _ value: BrainKind?) -> some View {
         let on = kind == value
-        let count = value.map { k in store.items.filter { $0.kind == k }.count } ?? store.items.count
+        let count = value.map { k in written.filter { $0.kind == k }.count } ?? written.count
         return XoolButton(radius: Theme.Radius.chip, action: { kind = value; schedule(now: true) }) {
             Text("\(title) \(count)").font(Theme.small).foregroundStyle(on ? Theme.text : Theme.textMuted)
                 .padding(.horizontal, Theme.Space.s)
@@ -128,7 +131,7 @@ struct BrainView: View {
     }
 
     private var status: String {
-        var parts = ["\(store.items.count) kept"]
+        var parts = ["\(written.count) kept"]
         if store.working > 0 { parts.append("reading \(store.working)") }
         if store.pending > 0, embedder.ready { parts.append("indexing meaning, \(store.pending) left") }
         return parts.joined(separator: " · ")
@@ -177,7 +180,7 @@ struct BrainView: View {
     @ViewBuilder
     private var list: some View {
         let searched = !query.trimmingCharacters(in: .whitespaces).isEmpty
-        if store.items.isEmpty && !writing {
+        if written.isEmpty && !writing {
             emptyState
         } else if searched, let hits {
             if hits.isEmpty {
@@ -270,7 +273,7 @@ struct BrainView: View {
             BrainPreview(item: item, store: store)
                 .id(item.id + item.updated.description + item.status)
         } else {
-            Text(store.items.isEmpty ? "" : "Pick an entry to see it here.").font(Theme.body).foregroundStyle(Theme.textMuted)
+            Text(written.isEmpty ? "" : "Pick an entry to see it here.").font(Theme.body).foregroundStyle(Theme.textMuted)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
@@ -286,10 +289,10 @@ struct BrainView: View {
             if !now { try? await Task.sleep(nanoseconds: 220_000_000) }
             guard !Task.isCancelled else { return }
             // Words first, at once; meaning joins when its vector is there.
-            hits = await store.search(typed, kind: filter, limit: 30, meaning: false)
+            hits = await store.search(typed, kind: filter, limit: 30, meaning: false).filter { !$0.item.isMedia }
             guard !Task.isCancelled else { return }
             let both = await store.search(typed, kind: filter, limit: 30)
-            if !Task.isCancelled { hits = both }
+            if !Task.isCancelled { hits = both.filter { !$0.item.isMedia } }
         }
     }
 
@@ -326,7 +329,7 @@ struct BrainView: View {
 }
 
 /// An entry on the right: its picture, what it is, its words, what can be done.
-private struct BrainPreview: View {
+struct BrainPreview: View {
     let item: BrainItem
     @ObservedObject var store: BrainStore
     @XState private var text = ""

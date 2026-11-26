@@ -1,8 +1,12 @@
 import SwiftUI
 
-/// The bar along the bottom of the window: model chip on the left, the
-/// agents as coloured pills, `+`, and the Agents button at the far right.
+/// The row under the page, bottom right and nothing else (docs/PLAN.md 6.1):
+/// `… [Chief] [Mktg] [Inbox] [Launch Bot] [Agents]|`. The Agents button is
+/// flush with the page's right edge, the first agent right beside it, the
+/// others lining up to its left, `+` at the far left of the pills.
 struct AgentDock: View {
+    /// The row's height; the page leaves this much under it.
+    static let height: CGFloat = 40
     @ObservedObject var ui: XoolUI
     @ObservedObject var store: AgentStore
     @ObservedObject var models: ModelStore
@@ -11,21 +15,9 @@ struct AgentDock: View {
     private static let visibleMax = 7
 
     var body: some View {
-        HStack(spacing: Theme.Space.s) {
-            ModelChip(models: models, ui: ui)
-            Divider().frame(height: 16).overlay(Theme.line)
-            let pinned = store.agents.filter(\.pinned)
-            let shown = Array(pinned.prefix(Self.visibleMax))
-            ForEach(shown) { agent in
-                AgentPill(agent: agent, ui: ui, store: store, state: runtime.state(agent: agent.id),
-                          number: (store.agents.firstIndex(of: agent) ?? 0) + 1)
-                    .onDrag { dragging = agent.id; return NSItemProvider(object: agent.id.uuidString as NSString) }
-                    .onDrop(of: [.text], isTargeted: nil) { _ in
-                        if let dragging { store.move(dragging, before: agent.id) }
-                        dragging = nil
-                        return true
-                    }
-            }
+        let pinned = store.agents.filter(\.pinned)
+        let shown = Array(pinned.prefix(Self.visibleMax))
+        HStack(spacing: Theme.Space.xs) {
             if pinned.count > Self.visibleMax {
                 Menu {
                     ForEach(pinned.dropFirst(Self.visibleMax)) { agent in
@@ -44,7 +36,17 @@ struct AgentDock: View {
                 ui.editing = nil
                 ui.showNewAgent = true
             }
-            Spacer(minLength: Theme.Space.s)
+            // The first agent sits next to the button; the rest to its left.
+            ForEach(Array(shown.reversed())) { agent in
+                AgentPill(agent: agent, ui: ui, store: store, state: runtime.state(agent: agent.id),
+                          number: (store.agents.firstIndex(of: agent) ?? 0) + 1)
+                    .onDrag { dragging = agent.id; return NSItemProvider(object: agent.id.uuidString as NSString) }
+                    .onDrop(of: [.text], isTargeted: nil) { _ in
+                        if let dragging { store.move(dragging, before: agent.id) }
+                        dragging = nil
+                        return true
+                    }
+            }
             XoolButton(action: { ui.toggleAgents() }) {
                 HStack(spacing: 6) {
                     Image(systemName: "square.grid.2x2").font(.system(size: 11, weight: .medium))
@@ -56,16 +58,17 @@ struct AgentDock: View {
             .accessibilityLabel("Agents overview")
             .keyboardShortcut("a", modifiers: [.command, .shift])
             // ⌥1–⌥9 call agent 1–9; no visible trace.
-            ForEach(1...9, id: \.self) { n in
-                Button("") { ui.openAgent(number: n) }
-                    .keyboardShortcut(KeyEquivalent(Character("\(n)")), modifiers: .option)
-                    .frame(width: 0, height: 0).opacity(0).accessibilityHidden(true)
+            .background {
+                ForEach(1...9, id: \.self) { n in
+                    Button("") { ui.openAgent(number: n) }
+                        .keyboardShortcut(KeyEquivalent(Character("\(n)")), modifiers: .option)
+                        .frame(width: 0, height: 0).opacity(0).accessibilityHidden(true)
+                }
             }
         }
-        .padding(.horizontal, Theme.Space.s)
-        .frame(height: 40)
-        .background(Theme.canvas)
-        .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+        // Flush right, as far from the edge as the page's card is.
+        .padding(.trailing, Metrics.cardGap)
+        .frame(height: Self.height)
     }
 }
 

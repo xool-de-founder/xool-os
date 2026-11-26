@@ -800,7 +800,7 @@ struct Helm: View {
                 if !browser.prefs.hidesForward { Door(icon: "chevron.right") {} }
                 if !browser.prefs.hidesReload { Door(icon: "arrow.clockwise") {} }
             }
-            .opacity(0.3)
+            .opacity(0.45)
             .allowsHitTesting(false)
         }
     }
@@ -823,12 +823,12 @@ struct Helm: View {
                 if !browser.prefs.hidesBack {
                     Door(icon: "chevron.left", help: "Back", shortcut: "tabs.back", held: { Rewind.menu(tab, back: true) }) { browser.back() }
                         .disabled(!back)
-                        .opacity(back ? 1 : 0.3)
+                        .opacity(back ? 1 : 0.45)
                 }
                 if !browser.prefs.hidesForward {
                     Door(icon: "chevron.right", help: "Forward", shortcut: "tabs.forward", held: { Rewind.menu(tab, back: false) }) { browser.forward() }
                         .disabled(!forward)
-                        .opacity(forward ? 1 : 0.3)
+                        .opacity(forward ? 1 : 0.45)
                 }
                 // Reload, or stop while it is still coming.
                 if !browser.prefs.hidesReload {
@@ -841,7 +841,7 @@ struct Helm: View {
                     if tab.loading { tab.stop() } else { browser.reload() }
                 }
                 .disabled(!tab.isWeb)
-                .opacity(tab.isWeb ? 1 : 0.3)
+                .opacity(tab.isWeb ? 1 : 0.45)
                 // The menu's second item is the reason for it: ⌥⌘R has no
                 // button. Nothing to offer while the door is Stop.
                 .contextMenu {

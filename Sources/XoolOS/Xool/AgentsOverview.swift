@@ -1,36 +1,27 @@
 import SwiftUI
 
-/// The panel from the right: pinned agents large, then every agent by latest
-/// activity with its last line, and the default model at the foot.
+/// The panel from the right, beside the page (it pushes it, never covers
+/// it): pinned agents large with their names, then every agent with its
+/// last line. No profile row (docs/PLAN.md 6, C).
 struct AgentsOverview: View {
+    static let width: CGFloat = 300
     @ObservedObject var ui: XoolUI
     @ObservedObject var store: AgentStore
     @ObservedObject var models: ModelStore
     @ObservedObject var runtime: ChatRuntime
-    @XState private var query = ""
 
-    private var list: [Agent] {
-        store.byActivity.filter { query.isEmpty || $0.name.localizedCaseInsensitiveContains(query) }
-    }
+    /// The agent whose thread is in front: its tile is raised.
+    private var activeAgent: UUID? { ui.front.flatMap { store.thread($0)?.agentID } }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: Theme.Space.s) {
-                Text("Agents").font(Theme.title).foregroundStyle(Theme.text)
+            HStack(spacing: Theme.Space.xs) {
+                Text("Agents").font(Theme.label).foregroundStyle(Theme.textMuted)
                 Spacer()
                 XoolIconButton(symbol: "plus", label: "New agent") { ui.editing = nil; ui.showNewAgent = true }
                 XoolIconButton(symbol: "xmark", label: "Close agents overview") { ui.showAgents = false }
             }
-            .padding(.leading, Theme.Space.l).padding(.trailing, Theme.Space.xs).padding(.top, 36)
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(Theme.textMuted)
-                TextField("Search agents", text: $query).textFieldStyle(.plain).font(Theme.body)
-                    .accessibilityLabel("Search agents")
-            }
-            .padding(.horizontal, Theme.Space.m).frame(height: Theme.target)
-            .background(RoundedRectangle(cornerRadius: Theme.Radius.row, style: .continuous).fill(Theme.surface))
-            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.row, style: .continuous).strokeBorder(Theme.line))
-            .padding(.horizontal, Theme.Space.l).padding(.vertical, Theme.Space.s)
+            .padding(.leading, Theme.Space.m).padding(.trailing, Theme.Space.xs).padding(.top, Theme.Space.s)
 
             if store.agents.isEmpty {
                 VStack(alignment: .leading, spacing: Theme.Space.s) {
@@ -49,52 +40,51 @@ struct AgentsOverview: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Theme.Space.m) {
                         let pinned = store.agents.filter(\.pinned)
-                        if !pinned.isEmpty && query.isEmpty {
-                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Theme.Space.s), count: 3), spacing: Theme.Space.s) {
+                        if !pinned.isEmpty {
+                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Theme.Space.xs), count: 3), spacing: Theme.Space.xs) {
                                 ForEach(pinned) { agent in
-                                    XoolButton(action: { ui.openAgent(agent.id) }) {
+                                    Button { ui.openAgent(agent.id) } label: {
                                         VStack(spacing: 6) {
-                                            AgentAvatar(color: agent.color, size: 44,
+                                            AgentAvatar(color: agent.color, size: 48,
                                                         thinking: runtime.isThinking(agent: agent.id))
-                                            Text(agent.name).font(Theme.small).foregroundStyle(Theme.text).lineLimit(2)
-                                                .multilineTextAlignment(.center)
+                                            Text(agent.name).font(Theme.small).foregroundStyle(Theme.text).lineLimit(1)
                                         }
                                         .padding(.vertical, Theme.Space.s).frame(maxWidth: .infinity)
+                                        .background(RoundedRectangle(cornerRadius: Theme.Radius.popover, style: .continuous)
+                                            .fill(activeAgent == agent.id ? Theme.raised : Color.clear))
+                                        .contentShape(Rectangle())
                                     }
+                                    .buttonStyle(.plain)
+                                    .xoolFocus(radius: Theme.Radius.popover) { ui.openAgent(agent.id) }
                                     .accessibilityLabel(agent.name)
                                 }
                             }
                         }
-                        ForEach(list) { agent in row(agent) }
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(store.byActivity) { agent in row(agent) }
+                        }
                     }
-                    .padding(.horizontal, Theme.Space.s).padding(.bottom, Theme.Space.s)
+                    .padding(.horizontal, Theme.Space.s).padding(.vertical, Theme.Space.s)
                 }
             }
-            Theme.line.frame(height: 1)
-            HStack(spacing: Theme.Space.s) {
-                Image(systemName: models.current?.isLocal == false ? "circle" : "circle.fill")
-                    .font(.system(size: 7, weight: .bold)).foregroundStyle(Theme.textMuted)
-                Text("You · \(models.current.map { ($0.isLocal ? "local: " : "cloud: ") + $0.label } ?? "no model")")
-                    .font(Theme.small).foregroundStyle(Theme.textMuted).lineLimit(1)
-                Spacer()
-            }
-            .padding(Theme.Space.m)
         }
-        .frame(width: 340)
+        .frame(width: Self.width)
         .frame(maxHeight: .infinity)
-        .background(Theme.raised)
+        .background(Theme.canvas)
         .overlay(alignment: .leading) { Theme.line.frame(width: 1) }
         .transition(Motion.reduced ? .identity : .move(edge: .trailing).combined(with: .opacity))
+        // Esc closes it.
+        .onExitCommand { ui.showAgents = false }
     }
 
     private func row(_ agent: Agent) -> some View {
         let last = store.lastThread(of: agent.id)
         return XoolButton(action: { ui.openAgent(agent.id) }) {
-            HStack(alignment: .top, spacing: Theme.Space.m) {
+            HStack(alignment: .center, spacing: Theme.Space.m) {
                 AgentAvatar(color: agent.color, size: 28, thinking: runtime.isThinking(agent: agent.id))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(agent.name).font(Theme.label).foregroundStyle(Theme.text)
-                    Text(last?.lastLine ?? "No messages yet").font(Theme.small).foregroundStyle(Theme.textMuted).lineLimit(2)
+                    Text(last?.lastLine ?? "No messages yet").font(Theme.small).foregroundStyle(Theme.textMuted).lineLimit(1)
                 }
                 Spacer(minLength: 0)
             }

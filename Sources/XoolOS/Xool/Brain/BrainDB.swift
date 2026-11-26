@@ -1,4 +1,5 @@
 import Foundation
+import UniformTypeIdentifiers
 import SQLite3
 
 /// `Float` is Xool's own type (Float.swift: floating video) in this module.
@@ -40,6 +41,13 @@ enum BrainKind: String, CaseIterable, Identifiable, Codable {
     }
 }
 
+enum MediaType: String, CaseIterable, Identifiable {
+    case image, video, audio
+    var id: String { rawValue }
+    var title: String { switch self { case .image: return "Images"; case .video: return "Video"; case .audio: return "Audio" } }
+    var symbol: String { switch self { case .image: return "photo"; case .video: return "film"; case .audio: return "waveform" } }
+}
+
 struct BrainItem: Identifiable, Equatable {
     var id: String
     var kind: BrainKind
@@ -68,6 +76,16 @@ struct BrainItem: Identifiable, Equatable {
         return "doc"
     }
     var indexing: Bool { status == "indexing" }
+    /// A picture, a video or a sound: shown under Media, not in the Brain's list.
+    var mediaType: MediaType? {
+        guard kind == .file, let ext = file.map({ ($0 as NSString).pathExtension.lowercased() }),
+              let type = UTType(filenameExtension: ext) else { return nil }
+        if type.conforms(to: .image) { return .image }
+        if type.conforms(to: .movie) || type.conforms(to: .video) { return .video }
+        if type.conforms(to: .audio) { return .audio }
+        return nil
+    }
+    var isMedia: Bool { mediaType != nil }
     /// Where an entry is opened from anywhere: a link in an answer.
     var address: String { "xool-brain://" + id }
 }

@@ -19,8 +19,7 @@ struct SideBar: View {
     @ObservedObject var browser: Browser
     @ObservedObject var prefs: Preferences
     @ObservedObject private var agents = AgentControl.shared
-    @ObservedObject private var xoolStore = AgentStore.shared
-    private var xoolAgents: [Agent] { Array(xoolStore.agents.prefix(SidebarAgents.maxRows)) }
+    @ObservedObject private var xoolUI = XoolUI.shared
     @Environment(\.colorScheme) private var colourScheme
     /// On the window's ground, beside the page's card (see CardEdge): the
     /// ground's colour and no edge of its own, the card's edge being the line.
@@ -164,7 +163,7 @@ struct SideBar: View {
         Motion.reduced ? nil : .timingCurve(0.25, 0.1, 0.25, 1, duration: 0.45)
     }
     /// The foot's height in a row: its doors and the margin beneath.
-    private static let footBox: CGFloat = 26 + 10
+    private static let footBox: CGFloat = SidebarFoot.height
     /// How far the strip's edge is pulled before the titles come back.
     static let stripPull: CGFloat = 24
 
@@ -204,7 +203,8 @@ struct SideBar: View {
     /// downloads counted whether running or not, so a download starting
     /// doesn't send them all back down.
     @MainActor static func doorsUp(_ prefs: Preferences, width: CGFloat, fullScreen: Bool, spaces: Int = 0) -> Bool {
-        prefs.doorsUp && prefs.sidebar && !prefs.iconColumn
+        // Xool: the foot is one row of its own (SidebarFoot), never up here.
+        false && prefs.doorsUp && prefs.sidebar && !prefs.iconColumn
             && beyondHelm(width, fullScreen: fullScreen, fold: folds(prefs, width: width, fullScreen: fullScreen), prefs: prefs) >= SideFoot.keptWidth(prefs, spaces: spaces)
     }
 
@@ -307,8 +307,7 @@ struct SideBar: View {
             }
             .padding(.bottom, (browser.player == nil ? 0 : rowHeight + SideBar.playerGap)
                      + (agentHere && !icons ? agentCard + SideBar.playerGap : 0)
-                     + (xoolAgents.isEmpty || icons ? 0 : SidebarAgents.height(agents: xoolStore.byActivity, tabs: browser.tabs) + SideBar.playerGap)
-                     + (icons ? 0 : SidebarBrain.height + SideBar.playerGap))
+                     + (icons ? 0 : SidebarResources.height + SideBar.playerGap))
 
             VStack(spacing: 0) {
                 Spacer()
@@ -320,14 +319,10 @@ struct SideBar: View {
                         .padding(.bottom, SideBar.playerGap)
                         .transition(.opacity)
                 }
-                // Xool's agents: a colour and a name each; a click opens its thread.
-                if !xoolAgents.isEmpty, !icons {
-                    SidebarAgents(browser: browser)
-                        .padding(.horizontal, 10)
-                        .padding(.bottom, SideBar.playerGap)
-                }
+                // Xool: Brain, Bookmarks, Media (docs/PLAN.md 6.1). The agents
+                // are not in the column; they are the row under the page.
                 if !icons {
-                    SidebarBrain()
+                    SidebarResources(browser: browser)
                         .padding(.horizontal, 10)
                         .padding(.bottom, SideBar.playerGap)
                 }
@@ -378,6 +373,16 @@ struct SideBar: View {
             // Into icons only or out of it, the doors are simply where they go.
             drawnUp = nil
         }
+        // Xool: the shortcuts, over the foot, inside the column.
+        .overlay(alignment: .bottom) {
+            if xoolUI.showKeys, !icons {
+                ShortcutsPopover()
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, SidebarFoot.height + 4)
+                    .transition(.opacity)
+            }
+        }
+        .animation(Motion.quick, value: xoolUI.showKeys)
         .environment(\.greys, greys)
         .frame(width: width)
         .frame(maxHeight: .infinity)
@@ -1999,6 +2004,9 @@ private struct SideFoot: View {
                 SpaceButtons(browser: browser)
                 ExtensionSlot(browser: browser, edge: .bottom, room: room, puzzle: !prefs.hidesExtensionsDoor, live: live)
             }
+        } else if true {
+            // Xool: one row, Settings at the left, keyboard and light/dark at the right.
+            SidebarFoot(browser: browser, prefs: prefs, fetches: fetches, live: live)
         } else {
             HStack(spacing: 2) {
                 if prefs.showsProfileDoor { ProfileBadge(browser: browser) }
@@ -2650,13 +2658,13 @@ struct Quiet: View {
                 }
                 Spacer(minLength: 0)
             }
-            .foregroundStyle(hovering ? Palette.ink.opacity(0.7) : greys.faint)
+            .foregroundStyle(hovering ? Theme.text : Theme.textMuted)
             .padding(.leading, centred ? 0 : 10)
             .frame(height: height)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(hovering ? greys.hover : .clear)
+                    .fill(hovering ? Theme.raised : .clear)
             )
             .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
         }
@@ -2770,12 +2778,12 @@ struct Door: View {
                 // through, so it stands off whatever it lies on. An opaque
                 // mid grey vanished on glass with Transparency up, where the
                 // ground is whatever is behind the window.
-                .foregroundStyle(on ? Palette.ink : (hovering ? Palette.ink.opacity(0.7) : greys.muted))
+                .foregroundStyle(on || hovering ? Theme.text : Theme.textMuted)
                 .offset(x: nudge)
                 .frame(width: 26, height: 26)
                 .background(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(on ? greys.wash : (hovering ? greys.hover : .clear))
+                        .fill(on ? greys.wash : (hovering ? Theme.raised : .clear))
                 )
                 .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }

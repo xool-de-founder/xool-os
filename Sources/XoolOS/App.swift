@@ -622,7 +622,7 @@ struct ContentView: View {
                 }
                 .padding(.leading, sideOnRight ? laidFar + panelRoom : 0)
                 .padding(.trailing, sideOnRight ? 0 : laidFar + panelRoom)
-                .padding(.bottom, laidFar)
+                .padding(.bottom, max(laidFar, dockRoom))
                 .padding(.leading, sideOnRight ? 0 : roomed.width)
                 .padding(.trailing, sideOnRight ? roomed.width : 0)
                 .padding(.top, roomed.height)
@@ -785,7 +785,7 @@ struct ContentView: View {
     private var cardInsets: EdgeInsets {
         let far = farGap + panelRoom
         return EdgeInsets(top: chrome.height, leading: sideOnRight ? far : chrome.width,
-                          bottom: farGap, trailing: sideOnRight ? chrome.width : far)
+                          bottom: max(farGap, dockRoom), trailing: sideOnRight ? chrome.width : far)
     }
 
     /// The far gap the page is laid out to leave (see `farRoom`).
@@ -803,6 +803,12 @@ struct ContentView: View {
 
     /// The card's gap on the side away from the column, and along the bottom.
     private var farGap: CGFloat { cards && !edgeToEdge ? Metrics.cardGap : 0 }
+
+    /// What the agent row under the page takes along the bottom (Xool,
+    /// docs/PLAN.md 6.1): the column runs past it to the bottom.
+    private var dockRoom: CGFloat {
+        fullscreenTab == nil ? AgentDock.height : 0
+    }
 
     /// The side panel is up: an extension's page in it, the tab in front one
     /// that extension may see, and no page filling the screen.
@@ -833,7 +839,7 @@ struct ContentView: View {
         SidePanelBeside(browser: browser, prefs: browser.prefs, onLeft: sideOnRight,
                         card: panelCard, width: panelWidth, onDrag: { [edges] in edges.panel = $0 })
             .padding(.top, chrome.height)
-            .padding(.bottom, farGap)
+            .padding(.bottom, max(farGap, dockRoom))
             .padding(sideOnRight ? .leading : .trailing, farGap)
             .frame(maxWidth: .infinity, maxHeight: .infinity,
                    alignment: sideOnRight ? .topLeading : .topTrailing)

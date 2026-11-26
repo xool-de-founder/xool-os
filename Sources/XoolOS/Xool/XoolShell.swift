@@ -16,39 +16,46 @@ struct XoolShell<Content: View>: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        // The window runs to the bottom (the column too); the agent row
+        // sits under the page only, bottom right (docs/PLAN.md 6.1). The
+        // page leaves it its room (ContentView: AgentDock.height).
+        HStack(spacing: 0) {
             ZStack(alignment: .bottomTrailing) {
-                HStack(spacing: 0) {
-                    content
-                    if ui.sidebarOpen {
-                        ThreadSidebar(ui: ui, store: store, runtime: runtime, models: models)
-                    }
-                }
+                content
                 if ui.mode == .floating, ui.hasThreads, !ui.minimized {
                     FloatingThread(ui: ui, store: store, runtime: runtime, models: models)
+                        .padding(.bottom, AgentDock.height)
                 }
                 if ui.showTabs {
                     TabsOverview(browser: browser, ui: ui)
+                        .padding(.bottom, AgentDock.height)
                 }
                 if ui.showBrain {
                     BrainView(ui: ui, browser: browser)
+                        .padding(.bottom, AgentDock.height)
                         .transition(.opacity)
                 }
-                if ui.showAgents {
-                    HStack(spacing: 0) {
-                        Spacer(minLength: 0)
-                        AgentsOverview(ui: ui, store: store, models: models, runtime: runtime)
-                    }
+                if ui.showMedia {
+                    MediaView(ui: ui, browser: browser)
+                        .padding(.bottom, AgentDock.height)
+                        .transition(.opacity)
                 }
+                AgentDock(ui: ui, store: store, models: models, runtime: runtime)
             }
-            .animation(Theme.motion(Theme.grow), value: ui.hasThreads)
-            .animation(Theme.motion(Theme.grow), value: ui.minimized)
-            .animation(Theme.motion(Theme.morph), value: ui.mode)
-            .animation(Theme.motion(Theme.grow), value: ui.showAgents)
-            .animation(Theme.motion(Theme.grow), value: ui.showTabs)
-            .animation(Theme.motion(Theme.grow), value: ui.showBrain)
-            AgentDock(ui: ui, store: store, models: models, runtime: runtime)
+            if ui.showAgents {
+                AgentsOverview(ui: ui, store: store, models: models, runtime: runtime)
+            }
+            if ui.sidebarOpen {
+                ThreadSidebar(ui: ui, store: store, runtime: runtime, models: models)
+            }
         }
+        .animation(Theme.motion(Theme.grow), value: ui.hasThreads)
+        .animation(Theme.motion(Theme.grow), value: ui.minimized)
+        .animation(Theme.motion(Theme.morph), value: ui.mode)
+        .animation(Theme.motion(Theme.grow), value: ui.showAgents)
+        .animation(Theme.motion(Theme.grow), value: ui.showTabs)
+        .animation(Theme.motion(Theme.grow), value: ui.showBrain)
+        .animation(Theme.motion(Theme.grow), value: ui.showMedia)
         .sheet(isPresented: $ui.showNewAgent) {
             AgentEditor(ui: ui, store: store, models: models, editing: ui.editing)
         }

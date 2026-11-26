@@ -30,6 +30,11 @@ final class XoolUI: ObservableObject {
     @Published var showAgents = false
     @Published var showTabs = false
     @Published var showBrain = false
+    @Published var showMedia = false
+    @Published var showKeys = false
+    /// When the shortcuts popover last closed, so the button that closed it
+    /// (a click outside) does not open it again.
+    private var keysClosedAt = Date.distantPast
     @Published var showModels = false
     @Published var creating: Agent.ID?
     @Published var showNewAgent = false
@@ -53,7 +58,6 @@ final class XoolUI: ObservableObject {
         if !open.contains(id) { open.append(id) }
         front = id
         minimized = false
-        showAgents = false
         withAnimation(Theme.motion(Theme.grow)) { objectWillChange.send() }
     }
 
@@ -74,12 +78,21 @@ final class XoolUI: ObservableObject {
     /// The sidebar takes room from the page only while it is open.
     var sidebarOpen: Bool { mode == .sidebar && hasThreads && !minimized }
 
-    func toggleAgents() { showAgents.toggle(); if showAgents { showTabs = false; showBrain = false } }
-    func toggleTabs() { showTabs.toggle(); if showTabs { showAgents = false; showBrain = false } }
+    /// The agents panel sits beside the page, so it does not close the views.
+    func toggleAgents() { showAgents.toggle() }
+    func toggleTabs() { showTabs.toggle(); if showTabs { showBrain = false; showMedia = false } }
     func toggleBrain() {
         showBrain.toggle()
-        if showBrain { showAgents = false; showTabs = false }
+        if showBrain { showTabs = false; showMedia = false }
     }
+    func toggleMedia() {
+        showMedia.toggle()
+        if showMedia { showTabs = false; showBrain = false }
+    }
+    func toggleKeys() {
+        if showKeys { showKeys = false } else if Date().timeIntervalSince(keysClosedAt) > 0.25 { showKeys = true }
+    }
+    func closeKeys() { if showKeys { showKeys = false; keysClosedAt = Date() } }
 
     /// ⌥1–⌥9: the agent at that place in the bar.
     func openAgent(number: Int) {
@@ -110,6 +123,8 @@ extension XoolUI {
             case "tabs": showTabs = true
             case "models": showModels = true
             case "brain": showBrain = true
+            case "media": showMedia = true
+            case "keys": showKeys = true
             // Test and profile runs only: put files in the Brain, a search in
             // its field, an entry on show, or write what a search finds to a file.
             case "brainadd" where Store.testing || getenv("XOOL_PROFILE") != nil:

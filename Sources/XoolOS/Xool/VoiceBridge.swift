@@ -150,7 +150,7 @@ final class VoiceBridge: ObservableObject {
 
     /// Asks Ollama to keep the models for a conversation loaded, so the first answer isn't a cold start.
     private func warmModels() {
-        let names = Set([OllamaCatalog.shared.quickVoice()?.model, ModelStore.shared.current?.model, DecisionModel.model()?.model].compactMap { $0 })
+        let names = Set([OllamaCatalog.shared.quickVoice()?.model, ModelStore.shared.current?.model, ModelRouter.shared.configured(.agent)?.model, DecisionModel.model()?.model].compactMap { $0 })
         guard Store.settings.bool(forKey: "xool.voice.keepWarm") || Store.settings.object(forKey: "xool.voice.keepWarm") == nil else { return }
         for name in names where OllamaCatalog.shared.installed.contains(where: { $0.name == name }) {
             Task { _ = await AIClient.shared.ollama("api/generate", method: "POST", body: ["model": name, "prompt": "", "keep_alive": "60m"], timeout: 120) }
@@ -208,6 +208,7 @@ final class VoiceBridge: ObservableObject {
 
     /// Microphone access: asks once, with our own words; denied is explained.
     private func withMicrophone(_ then: @escaping () -> Void) {
+        if getenv("XOOL_VOICE_FAKEMIC") != nil, Store.testing || getenv("XOOL_PROFILE") != nil { then(); return }
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
         case .authorized: then()
         case .notDetermined:
@@ -432,6 +433,7 @@ final class VoiceBridge: ObservableObject {
 
     private func handle(_ event: VoiceEvent) {
         if Store.testing { FileHandle.standardError.write(Data("voice event: \(event)\n".utf8)) }
+        Self.log("event \(event)")
         switch event {
         case .ready: loading = nil
         case .warm:
@@ -565,8 +567,10 @@ final class VoiceBridge: ObservableObject {
         can't hear or speak. Answer in the language the user spoke (usually German), in one to three short, natural sentences, the way \
         you would say it to a person next to you. No markdown, no lists, no headings, no emoji, no links read out (name the site instead). \
         Write numbers, times and units the way they are said. Start with the answer itself, no filler like "Gladly!" (a short \
-        acknowledgement was already spoken). When a task takes several steps (searching, browsing), say in a few words what you are doing. \
-        Give the short version and offer more. Now: \(clock).
+        acknowledgement was already spoken). When the web, the browser or the user's notes are needed, \
+        use the tools straight away, without announcing first (a phrase like "I'm having a look" was already spoken), and answer from what \
+        they return. Never end a turn by only saying what you are about to do. After the tools: the answer, short, with the one or two most \
+        important facts. Offer more at the end. Now: \(clock).
         """
     }
 
@@ -590,6 +594,7 @@ final class VoiceBridge: ObservableObject {
             s.consumed = text.count
             for piece in s.chunker.feed(fresh) {
                 if Store.testing { FileHandle.standardError.write(Data("voice say: \(piece)\n".utf8)) }
+                Self.log("say: \(piece)")
                 if !s.sentAny {
                     let took = Date().timeIntervalSince(s.started)
                     firstSentenceAverage = firstSentenceAverage == 0 ? took : firstSentenceAverage * 0.6 + took * 0.4
@@ -683,6 +688,9 @@ final class VoiceBridge: ObservableObject {
         state = .listening
         engine.transcribe(file: file)
     }
+
+    /// Test runs: a WAV the fake microphone (XOOL_VOICE_FAKEMIC) hears after `delay` seconds.
+    func feedMic(_ path: String, delay: Double) { (engine as? SidecarEngine)?.feedMic(path, delay: delay) }
 
     /// Test runs: the recording of what the sidecar said (`--record`, XOOL_VOICE_RECORD).
     func saveOutput(to path: String) { (engine as? SidecarEngine)?.saveOutput(to: path) }

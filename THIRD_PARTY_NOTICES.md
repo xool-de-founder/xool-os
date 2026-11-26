@@ -368,15 +368,38 @@ scripts/xool-setup.sh). That repository's NOTICE mentions screenshots of Nod
 (n8n GmbH, Apache License 2.0); none of those are used here, and Nod is not
 embedded.
 
-`scripts/xool-setup.sh` installs, onto the user's Mac and not as part of this
-repository or the app bundle, programs and models that keep their own
-licences: Ollama (MIT), Piper TTS (GPL-3.0), the voice "Thorsten" by Thorsten
-Müller (CC0), Whisper (MIT, OpenAI), mlx-whisper (MIT), faster-whisper (MIT),
-Silero VAD (MIT), sounddevice (MIT), numpy (BSD). Piper runs as a separate
-process in its own Python environment; it is not linked into the app. The
-licence of the Piper voices for redistribution inside the bundle is still to
-be checked (docs/PLAN.md, open points), which is why the voice is downloaded
-at setup time.
+### What the voice installs and uses (Phase 9)
+
+`scripts/xool-setup.sh` (also behind the "Set up the voice" card in Jarvis' office, `--only-voice`) installs, onto the
+user's Mac and not as part of this repository or the app bundle, programs and models that keep their own licences. All of
+them run on the Mac; nothing is sent anywhere.
+
+| Part | What for | Licence |
+|---|---|---|
+| mlx-whisper 0.4 (Apple MLX) | speech to text on Apple Silicon | MIT |
+| Whisper large-v3-turbo weights (OpenAI; MLX conversion `mlx-community/whisper-large-v3-turbo`) | the ears | MIT |
+| faster-whisper (other Macs than Apple Silicon) | speech to text | MIT |
+| Silero VAD via pysilero-vad 3 | notices when you start and stop talking | MIT |
+| Piper TTS (`piper-tts` 1.x, OHF-Voice/piper1-gpl) | the mouth | **GPL-3.0-or-later** |
+| Voice `de_DE-thorsten-high` by Thorsten Müller (rhasspy/piper-voices) | the voice | CC0 1.0 |
+| openWakeWord 0.6 (David Scripka) | the optional wake word "Hey Jarvis" (code) | Apache-2.0 |
+| openWakeWord pre-trained model `hey_jarvis` | the optional wake word (model) | **CC BY-NC-SA 4.0 (non-commercial)** |
+| sounddevice (PortAudio) | microphone and speakers | MIT |
+| numpy | arrays | BSD-3-Clause |
+| Ollama and the models you pull | the language model, the quick judge | MIT (Ollama); model licences vary (for example Gemma terms, Apache-2.0 for Qwen) |
+
+Notes that matter when this is passed on:
+
+* **Piper is GPL-3.0.** It runs inside the sidecar's own Python environment, in a separate process from the app, and is
+  fetched from PyPI at setup time; the app does not link it and the bundle does not contain it. If the sidecar and Piper
+  were ever shipped together in one package, that package would have to follow the GPL (the sidecar's source is in this
+  repository). Replacing Piper with a permissively licensed engine would remove the question.
+* **The `hey_jarvis` wake-word model is non-commercial** (CC BY-NC-SA 4.0), because of its training data. The wake word is off
+  by default. For a commercial release, train an own model with openWakeWord (the code is Apache-2.0) or leave it out.
+* The 320 bridge phrases (`phrasen.py`) are written for Xool OS (MIT) and spoken with the Thorsten voice at first start;
+  the audio is cached under `~/Library/Application Support/Xool/voice/cache`.
+* The licence of the Piper voices for redistribution inside the bundle is still to be checked (docs/PLAN.md, open
+  points), which is why the voice is downloaded at setup time.
 
 ## Canvas (web/canvas, built into Resources/canvas)
 

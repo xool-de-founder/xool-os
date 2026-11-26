@@ -98,7 +98,8 @@ final class ChatRuntime: ObservableObject {
                 if withTools, provider.takesTools {
                     do {
                         try await AgentRuntime.shared.run(threadID: threadID, agent: agent, choice: choice, provider: provider,
-                                                          key: key, history: history, invoked: invoked)
+                                                          key: key, history: history, invoked: invoked,
+                                                          expectTools: decision.decided && decision.needsTools)
                         self?.finish(threadID, error: nil, provider: provider)
                         return
                     } catch {

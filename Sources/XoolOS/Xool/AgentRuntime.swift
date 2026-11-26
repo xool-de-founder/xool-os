@@ -66,7 +66,7 @@ final class AgentRuntime {
     /// Streams into the thread's last (assistant) message: text as it comes,
     /// and a step for each tool call. Throws what the provider threw.
     func run(threadID: UUID, agent: Agent, choice: ModelChoice, provider: AIProvider, key: String?,
-             history: [AIMessage], invoked: Skill?) async throws {
+             history: [AIMessage], invoked: Skill?, expectTools: Bool = false) async throws {
         let store = AgentStore.shared
         let chat = ChatRuntime.shared
         let skills = SkillStore.shared.skills(for: agent)
@@ -105,6 +105,7 @@ final class AgentRuntime {
         let specs = AgentTools.specs(skills: skills, delegates: agent.isMain ? store.assistants + store.further : [])
         var turns: [AgentTurn] = history.map { $0.role == .user ? .user($0.text) : .assistant($0.text, []) }
 
+        var nudged = false
         for _ in 0..<Self.rounds {
             try Task.checkCancellation()
             var said = ""
@@ -123,7 +124,19 @@ final class AgentRuntime {
                 }
             }
             if Task.isCancelled { return }
-            guard !calls.isEmpty else { return }
+            guard !calls.isEmpty else {
+                // A model that only says what it is about to do ("Ich suche jetzt …") and stops: once, it is told
+                // to do it. Only when the quick judgement said this needs the web, the browser or the brain.
+                let didNothing = store.thread(threadID)?.messages.last?.steps?.isEmpty ?? true
+                if expectTools, !nudged, didNothing, !said.isEmpty, said.count < 400, !said.contains("?") {
+                    nudged = true
+                    store.mutate(threadID) { $0.messages[$0.messages.count - 1].text += "\n\n" }
+                    turns.append(.assistant(said, []))
+                    turns.append(.user("Don't announce it, do it: call the tool now, then answer from what it returns."))
+                    continue
+                }
+                return
+            }
             // A model that spoke before its tools: what it said stays, apart.
             if !said.isEmpty { store.mutate(threadID) { $0.messages[$0.messages.count - 1].text += "\n\n" } }
             turns.append(.assistant(said, calls))

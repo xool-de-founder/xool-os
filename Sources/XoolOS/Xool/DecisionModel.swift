@@ -77,15 +77,21 @@ extension DecisionModel {
     and what was said before. Decide whether the sentence is meant for the assistant. Reply with one line of JSON and nothing else:
     {"to_assistant": true|false}
     true: the person asks the assistant something, gives it a task, or follows up on what it just said.
-    false: the person talks to someone else in the room or on the phone, talks to themselves, reads something aloud, \
-    or it is the television or a recording.
+    false: the person talks to someone else in the room or on the phone (a partner, a child, a colleague: "Schatz, …", "Mama, …"), \
+    talks to themselves, reads something aloud, or it is the television or a recording.
+    Examples:
+    "Schatz, kannst du bitte den Tisch decken?" -> false
+    "Wie wird das Wetter morgen?" -> true
+    "Mama, wo sind meine Schuhe?" -> false
+    "Und wie viele Einwohner hat die Stadt?" (after the assistant spoke of Paris) -> true
+    "Ich muss gleich noch einkaufen gehen." -> false
     {session}
     """
 
     /// True: meant for the assistant. False: not. Nil: the small model isn't there or didn't answer in time
     /// (the caller then decides by whether a conversation is open).
     static func addressed(_ text: String, name: String, recent: [String], inSession: Bool, timeout: UInt64 = 1_800_000_000) async -> Bool? {
-        guard let choice = model(), let provider = choice.aiProvider, provider != .thisMac else { return nil }
+        guard let choice = OllamaCatalog.shared.quickVoice() ?? model(), let provider = choice.aiProvider, provider != .thisMac else { return nil }
         let system = addresseeSystem
             .replacingOccurrences(of: "{name}", with: name)
             .replacingOccurrences(of: "{session}", with: inSession

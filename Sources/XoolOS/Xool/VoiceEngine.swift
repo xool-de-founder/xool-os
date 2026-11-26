@@ -103,7 +103,8 @@ final class SidecarEngine: VoiceEngine {
                     "--name", AgentStore.shared.jarvis.name, "--pause", String(VoiceBridge.pause)]
         if getenv("XOOL_VOICE_NULL") != nil { args.append("--null-audio") }
         // Tests: a recording of what would be said, and a recorded WAV as the microphone.
-        if let record = getenv("XOOL_VOICE_RECORD") { _ = record; args.append("--record") }
+        if getenv("XOOL_VOICE_RECORD") != nil { args.append("--record") }
+        if getenv("XOOL_VOICE_FAKEMIC") != nil { args += ["--fake-mic", "--echo-gain", "0.15"] }
         process.arguments = args
         process.currentDirectoryURL = source
         var env = ProcessInfo.processInfo.environment
@@ -185,6 +186,8 @@ final class SidecarEngine: VoiceEngine {
 
     func listen(_ mode: ListenMode, bargeIn: Bool) { send(["cmd": "listen", "mode": mode.rawValue, "barge_in": bargeIn, "pause": VoiceBridge.pause]) }
     func wake(_ on: Bool) { send(["cmd": "wake", "on": on]) }
+    /// Tests: a WAV the fake microphone hears after `delay` seconds.
+    func feedMic(_ path: String, delay: Double) { send(["cmd": "feed", "path": path, "delay": delay]) }
     /// Tests: what would have come out of the speakers, as a WAV.
     func saveOutput(to path: String) { send(["cmd": "save_out", "path": path]) }
     func ptt(down: Bool) { send(["cmd": "ptt", "down": down]) }

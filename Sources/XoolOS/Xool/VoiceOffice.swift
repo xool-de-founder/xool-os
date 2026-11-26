@@ -7,7 +7,7 @@ enum VoiceStatus: Equatable {
     var title: String {
         switch self {
         case .missing: return "Voice not set up"
-        case .installing: return "Setting up the voice"
+        case .installing: return "Installing"
         case .starting: return "Waking up"
         case .ready: return "Ready"
         case .listening: return "Listening"
@@ -80,14 +80,15 @@ struct VoiceSetupCard: View {
         if setup.running {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
-                    Text("Setting up the voice · \(setup.title)")
+                    Text("Setting up the voice")
                         .font(Theme.small).foregroundStyle(Theme.text).lineLimit(1)
                     Spacer(minLength: 6)
                     Pill("Stop") { setup.cancel() }
                 }
                 ProgressView(value: setup.download ?? (Double(max(setup.step - 1, 0)) / Double(max(setup.steps, 1))))
-                    .progressViewStyle(.linear)
-                if let last = setup.lines.last {
+                    .progressViewStyle(.linear).tint(Theme.focus)
+                // The newest readable line (not a raw download bar of some library).
+                if let last = setup.lines.last(where: { !$0.contains("|") || $0.contains("▕") }) {
                     Text(last).font(Theme.small).foregroundStyle(Theme.textMuted).lineLimit(1)
                 }
             }

@@ -390,7 +390,7 @@ struct BrainPreview: View {
 
     private var actions: some View {
         HStack(spacing: Theme.Space.s) {
-            if item.url != nil || item.kind == .file || item.kind == .skill {
+            if item.url != nil || item.kind == .file || item.kind == .skill || item.kind == .canvas {
                 button(item.url != nil ? "Open page" : item.kind == .skill ? "Open skills folder" : "Open", "arrow.up.forward.square") { store.open(item) }
             }
             if item.kind == .file { button("Show in Finder", "folder") { store.reveal(item) } }

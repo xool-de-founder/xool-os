@@ -7,7 +7,7 @@ typealias F32 = Swift.Float
 
 /// What kind of thing a Brain entry is.
 enum BrainKind: String, CaseIterable, Identifiable, Codable {
-    case note, file, page, bookmark, skill
+    case note, file, page, bookmark, skill, canvas
     var id: String { rawValue }
 
     var title: String {
@@ -17,6 +17,7 @@ enum BrainKind: String, CaseIterable, Identifiable, Codable {
         case .page: return "Pages"
         case .bookmark: return "Bookmarks"
         case .skill: return "Skills"
+        case .canvas: return "Canvases"
         }
     }
 
@@ -27,6 +28,7 @@ enum BrainKind: String, CaseIterable, Identifiable, Codable {
         case .page: return "Saved page"
         case .bookmark: return "Bookmark"
         case .skill: return "Skill"
+        case .canvas: return "Canvas"
         }
     }
 
@@ -37,6 +39,7 @@ enum BrainKind: String, CaseIterable, Identifiable, Codable {
         case .page: return "doc.richtext"
         case .bookmark: return "bookmark"
         case .skill: return "wand.and.stars"
+        case .canvas: return "square.on.square.dashed"
         }
     }
 }

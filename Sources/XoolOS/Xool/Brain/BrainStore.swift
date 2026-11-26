@@ -150,6 +150,31 @@ final class BrainStore: ObservableObject {
         return db.item(id) ?? item
     }
 
+    /// A canvas document: its JSON is the file, the words on it are what is indexed.
+    /// `id` nil makes a new entry.
+    @discardableResult
+    func saveCanvas(id: String?, title: String, json: String, text: String) -> BrainItem {
+        let id = id ?? Self.newID()
+        let relative = id + "/canvas.json"
+        let dir = filesFolder.appendingPathComponent(id, isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try? json.write(to: filesFolder.appendingPathComponent(relative), atomically: true, encoding: .utf8)
+        var item = db.item(id) ?? BrainItem(id: id, kind: .canvas, title: title)
+        item.kind = .canvas
+        item.title = title
+        item.file = relative
+        item.size = Int64(json.utf8.count)
+        item.updated = Date()
+        item.status = "ready"
+        item.note = nil
+        db.put(item, text: text)
+        db.setChunks(id, texts: Ingest.chunks(title: title, text: text))
+        reload()
+        pending = db.pendingCount()
+        startEmbedding()
+        return db.item(id) ?? item
+    }
+
     /// The page in `tab`, as Reading Mode reads it: its words and address.
     func savePage(of tab: Tab, announce: @escaping (String) -> Void) {
         guard tab.isWeb, let address = tab.pageAddress, ["http", "https"].contains(address.scheme?.lowercased() ?? "") else {
@@ -181,7 +206,8 @@ final class BrainStore: ObservableObject {
     }
 
     func rename(_ id: String, to title: String) {
-        guard var item = db.item(id), item.kind == .note || item.kind == .file || item.kind == .page else { return }
+        guard var item = db.item(id), item.kind == .note || item.kind == .file || item.kind == .page || item.kind == .canvas else { return }
+        if item.kind == .canvas { CanvasStore.shared.rename(id, to: title); return }
         let text = db.text(id)
         item.title = title
         item.updated = Date()
@@ -355,6 +381,8 @@ final class BrainStore: ObservableObject {
 
     /// Shows an entry in the Brain view.
     func show(_ id: String) {
+        // A canvas opens as a tab of its own, not in the list.
+        if db.item(id)?.kind == .canvas { CanvasStore.shared.open(id); return }
         selection = id
         XoolUI.shared.showBrain = true
         XoolUI.shared.showAgents = false
@@ -363,7 +391,9 @@ final class BrainStore: ObservableObject {
 
     /// An address or a file opened where it belongs.
     func open(_ item: BrainItem) {
-        if let address = item.url.flatMap({ URL(string: $0) }) {
+        if item.kind == .canvas {
+            CanvasStore.shared.open(item.id)
+        } else if let address = item.url.flatMap({ URL(string: $0) }) {
             Browsers.acting.open(address, foreground: true)
             XoolUI.shared.showBrain = false
         } else if item.kind == .skill {

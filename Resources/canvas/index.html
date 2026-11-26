@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Canvas</title>
+<link rel="stylesheet" href="canvas.css">
+</head>
+<body>
+<div id="stage" role="application" aria-label="Canvas"></div>
+<input id="title" type="text" value="Untitled canvas" aria-label="Canvas title" spellcheck="false">
+<div id="hint" hidden>
+  <strong>An empty surface</strong>
+  <span>Press F for a frame, T for text, or drop a picture here.</span>
+</div>
+<div id="tools" role="toolbar" aria-label="Tools"></div>
+<div id="zoom" role="group" aria-label="Zoom">
+  <button id="zoom-out" type="button" aria-label="Zoom out" title="Zoom out (⌘−)"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M3.5 8h9"/></svg></button>
+  <button id="zoom-level" type="button" aria-label="Reset zoom" title="Reset to 100% (⌘0)">100%</button>
+  <button id="zoom-in" type="button" aria-label="Zoom in" title="Zoom in (⌘+)"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M3.5 8h9M8 3.5v9"/></svg></button>
+  <button id="zoom-fit" type="button" aria-label="Zoom to fit" title="Zoom to fit (⇧1)"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/></svg></button>
+</div>
+<script src="canvas.js"></script>
+</body>
+</html>

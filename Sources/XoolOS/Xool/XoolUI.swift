@@ -149,6 +149,24 @@ extension XoolUI {
             case "brainlog" where Store.testing || getenv("XOOL_PROFILE") != nil:
                 let k = (pieces.count > 1 ? pieces[1] : "").split(separator: "|", maxSplits: 1).map(String.init)
                 if k.count == 2 { BrainStore.shared.logSearch(k[1], to: k[0]) }
+            // Test and profile runs only: canvases. `canvasnew` makes and opens an empty one;
+            // `canvasagent` makes one the way an agent's tools do; `canvasopen:<id or title>`;
+            // `canvasjs:<seconds>|<script file>|<result file>` runs a script in the open page.
+            case "canvasnew" where Store.testing || getenv("XOOL_PROFILE") != nil:
+                CanvasStore.shared.newCanvas()
+            case "canvasagent" where Store.testing || getenv("XOOL_PROFILE") != nil:
+                CanvasStore.shared.launchDemo()
+            case "canvasopen" where Store.testing || getenv("XOOL_PROFILE") != nil:
+                if pieces.count > 1, let id = AgentTools.canvasID(pieces[1]) { CanvasStore.shared.open(id) }
+            case "canvasjs" where Store.testing || getenv("XOOL_PROFILE") != nil:
+                let k = (pieces.count > 1 ? pieces[1] : "").split(separator: "|", maxSplits: 2).map(String.init)
+                if k.count == 3 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + (Double(k[0]) ?? 5)) {
+                        guard let controller = CanvasHosts.shared.live.values.first,
+                              let script = try? String(contentsOfFile: k[1], encoding: .utf8) else { return }
+                        controller.run(script) { try? $0.write(toFile: k[2], atomically: true, encoding: .utf8) }
+                    }
+                }
             case "settings":
                 Browsers.frontBrowser.settingsPage = SettingsPanel.Page.named(pieces.count > 1 ? pieces[1] : "models") ?? .models
                 Browsers.frontBrowser.tuning = true

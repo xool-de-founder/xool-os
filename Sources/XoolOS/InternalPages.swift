@@ -17,6 +17,8 @@ struct InternalPage: Equatable {
     enum Kind: String, CaseIterable {
         case settings, history, downloads, bookmarks, passwords, archive
         case importing = "import"
+        /// A canvas document of the Brain; `detail` is its id, and each document has a tab of its own.
+        case canvas
     }
 
     var kind: Kind
@@ -56,6 +58,9 @@ struct InternalPage: Equatable {
         case .passwords: return "Passwords"
         case .archive: return "Archived Tabs"
         case .importing: return "Bring Things Over"
+        case .canvas:
+            guard Thread.isMainThread, let detail else { return "Canvas" }
+            return MainActor.assumeIsolated { BrainStore.shared.item(detail)?.title ?? "Canvas" }
         }
     }
 
@@ -68,6 +73,7 @@ struct InternalPage: Equatable {
         case .passwords: return "key"
         case .archive: return "archivebox"
         case .importing: return "square.and.arrow.down"
+        case .canvas: return "square.on.square.dashed"
         }
     }
 
@@ -172,6 +178,9 @@ struct InternalPageView: View {
             ArchivePanel(browser: browser, archive: browser.archive)
         case .importing:
             ImportPanel(browser: browser)
+        case .canvas:
+            // Its own state for each document, kept apart by its id.
+            CanvasPage(id: page.detail ?? "").id(page.detail)
         }
     }
 }

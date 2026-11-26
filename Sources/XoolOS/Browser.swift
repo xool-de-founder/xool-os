@@ -5749,7 +5749,7 @@ final class Browser: NSObject, ObservableObject {
         var regrouped = false
         for ghost in members.reversed() {
             // One of Search's own pages opened again since: it stays the one.
-            if let own = InternalPage(url: ghost.url), pageTab(own.kind) != nil { continue }
+            if let own = InternalPage(url: ghost.url), pageTab(for: own) != nil { continue }
             let tab = Tab(configuration: Web.configuration(space: spaceID))
             prepare(tab)
             let group = regroup(ghost)
@@ -10457,6 +10457,11 @@ extension Browser {
         tabs.first { $0.page?.kind == kind }
     }
 
+    /// The tab for this very page: one tab of its kind, except a canvas, which has one for each document.
+    func pageTab(for page: InternalPage) -> Tab? {
+        page.kind == .canvas ? tabs.first { $0.page == page } : pageTab(page.kind)
+    }
+
     /// ⌘, ⌘Y ⇧⌘J and the menus: the page's tab, brought forward if it is
     /// open, made otherwise. An empty tab in front becomes the page rather
     /// than being left behind it; a private one doesn't — these pages are
@@ -10472,7 +10477,7 @@ extension Browser {
         if page.kind == .passwords { relist() }
         if page.kind == .history, pageTab(.history) == nil { recallMode = .history }
         let tab: Tab
-        if let open = pageTab(page.kind) {
+        if let open = pageTab(for: page) {
             tab = open
             // Asked for another section, or another browser to bring
             // things from: the open tab moves there, without a step back.
@@ -10505,7 +10510,7 @@ extension Browser {
     /// comes back, as a link would. Unless that page is already open in a
     /// tab of its own, which is then the one shown.
     func lead(to page: InternalPage) {
-        guard let here = active, here.page != nil, pageTab(page.kind) == nil else {
+        guard let here = active, here.page != nil, pageTab(for: page) == nil else {
             show(page)
             return
         }

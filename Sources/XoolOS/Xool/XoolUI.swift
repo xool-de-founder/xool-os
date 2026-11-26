@@ -120,6 +120,21 @@ extension XoolUI {
             case "choose" where Store.testing:
                 let k = (pieces.count > 1 ? pieces[1] : "").split(separator: "=", maxSplits: 1).map(String.init)
                 if k.count == 2 { ModelStore.shared.current = ModelChoice(provider: k[0], model: k[1]) }
+            // Test runs only: the agent role's model, what a question about a
+            // site is answered (after four seconds), and Stop after n seconds.
+            case "role" where Store.testing:
+                let k = (pieces.count > 1 ? pieces[1] : "").split(separator: "=", maxSplits: 1).map(String.init)
+                if k.count == 2, let role = ModelRole(rawValue: k[0]) {
+                    let m = k[1].split(separator: "/", maxSplits: 1).map(String.init)
+                    if m.count == 2 { ModelRouter.shared.set(ModelChoice(provider: m[0], model: m[1]), for: role) }
+                }
+            case "site" where Store.testing:
+                AgentRuntime.shared.autoAnswer = pieces.count > 1 ? ["always": .always, "run": .thisRun, "deny": .deny][pieces[1]] : nil
+            case "stopafter" where Store.testing:
+                let seconds = Double(pieces.count > 1 ? pieces[1] : "") ?? 10
+                DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { [weak self] in
+                    if let id = self?.front { ChatRuntime.shared.stop(id) }
+                }
             case "cloud" where Store.testing: ModelRouter.shared.allowCloud = pieces.count > 1 && pieces[1] == "on"
             case "light": NSApp.appearance = NSAppearance(named: .aqua)
             case "dark": NSApp.appearance = NSAppearance(named: .darkAqua)

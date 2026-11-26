@@ -17,7 +17,7 @@ struct AgentDock: View {
             let pinned = store.agents.filter(\.pinned)
             let shown = Array(pinned.prefix(Self.visibleMax))
             ForEach(shown) { agent in
-                AgentPill(agent: agent, ui: ui, store: store, thinking: runtime.isThinking(agent: agent.id),
+                AgentPill(agent: agent, ui: ui, store: store, state: runtime.state(agent: agent.id),
                           number: (store.agents.firstIndex(of: agent) ?? 0) + 1)
                     .onDrag { dragging = agent.id; return NSItemProvider(object: agent.id.uuidString as NSString) }
                     .onDrop(of: [.text], isTargeted: nil) { _ in
@@ -73,8 +73,20 @@ struct AgentPill: View {
     let agent: Agent
     @ObservedObject var ui: XoolUI
     @ObservedObject var store: AgentStore
-    let thinking: Bool
+    let state: AgentActivity
     let number: Int
+    private var thinking: Bool { state == .thinking }
+
+    /// What the pill says besides the face: how many tabs it works in, or
+    /// that it waits for you.
+    private var stateText: String {
+        switch state {
+        case .idle: return ""
+        case .thinking: return ", thinking"
+        case .browsing(let n): return ", working in the browser, \(n) tab\(n == 1 ? "" : "s")"
+        case .waiting: return ", waiting for you"
+        }
+    }
     @XState private var hovering = false
 
     private var open: Bool {
@@ -89,6 +101,21 @@ struct AgentPill: View {
                     .font(Theme.font(Theme.Size.small, Theme.Weight.label))
                     .foregroundStyle(Theme.text)
                     .lineLimit(1)
+                switch state {
+                case .browsing(let n):
+                    HStack(spacing: 2) {
+                        Image(systemName: "square.on.square").font(.system(size: 9, weight: .medium))
+                        Text("\(n)").font(Theme.font(Theme.Size.caption, Theme.Weight.label)).monospacedDigit()
+                    }
+                    .foregroundStyle(Theme.text)
+                    .padding(.horizontal, 4)
+                    .frame(height: 16)
+                    .background(RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous).fill(agent.color.solid.opacity(0.25)))
+                case .waiting:
+                    Circle().fill(agent.color.solid).frame(width: 7, height: 7)
+                        .overlay(Circle().strokeBorder(Theme.canvas, lineWidth: 1.5).padding(-1.5))
+                default: EmptyView()
+                }
             }
             .padding(.horizontal, 8)
             .frame(height: Theme.target)
@@ -101,7 +128,7 @@ struct AgentPill: View {
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
         .xoolFocus(radius: Theme.Radius.chip) { ui.openAgent(agent.id) }
-        .accessibilityLabel("\(agent.name), agent \(number)\(thinking ? ", thinking" : "")")
+        .accessibilityLabel("\(agent.name), agent \(number)\(stateText)")
         .help("\(agent.name) · ⌥\(number)")
         .contextMenu {
             Button("New thread") { ui.openAgent(agent.id, fresh: true) }

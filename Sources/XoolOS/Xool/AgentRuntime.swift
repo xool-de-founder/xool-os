@@ -28,6 +28,8 @@ final class AgentRuntime {
     /// Most rounds of "model, then tools" in one run.
     static let rounds = 12
 
+    /// Test runs only (XOOL_UI=site:always): answers a question about a site.
+    var autoAnswer: SiteAnswer?
     private var runs: [UUID: AgentRun] = [:]
     private var pending: [UUID: CheckedContinuation<SiteAnswer, Never>] = [:]
 
@@ -168,6 +170,10 @@ final class AgentRuntime {
         let chat = ChatRuntime.shared
         chat.asking[run.threadID] = SitePermission(host: host, agent: run.agent.id)
         chat.setActivity(run.threadID, .waiting)
+        if Store.testing, let auto = autoAnswer {
+            let thread = run.threadID
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in self?.resolve(thread, auto) }
+        }
         let answer = await withCheckedContinuation { pending[run.threadID] = $0 }
         chat.asking[run.threadID] = nil
         chat.setActivity(run.threadID, .browsing(AgentControl.shared.tabs(of: run.session).count))

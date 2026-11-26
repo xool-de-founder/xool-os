@@ -121,6 +121,8 @@ struct AgentEditor: View {
     @XState private var instructions = ""
     @XState private var model: ModelChoice?
     @XState private var picking = false
+    @XState private var skillNames: Set<String> = []
+    @ObservedObject private var skillStore = SkillStore.shared
     @FocusState private var nameFocus: Bool
 
     var body: some View {
@@ -171,6 +173,7 @@ struct AgentEditor: View {
                 .background(RoundedRectangle(cornerRadius: Theme.Radius.row, style: .continuous).fill(Theme.surface))
                 .overlay(RoundedRectangle(cornerRadius: Theme.Radius.row, style: .continuous).strokeBorder(Theme.line))
                 .accessibilityLabel("Instructions")
+            skillsSection
             HStack {
                 Spacer()
                 XoolButton(action: { ui.showNewAgent = false }) {
@@ -190,10 +193,45 @@ struct AgentEditor: View {
         .onAppear {
             if let editing {
                 name = editing.name; color = editing.color; instructions = editing.instructions; model = editing.model
+                skillNames = Set(editing.skills ?? [])
             } else {
                 color = store.nextColor()
             }
             nameFocus = true
+        }
+    }
+
+    /// The skills in `Application Support/Xool/skills`, each ticked or not.
+    private var skillsSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.xs) {
+            HStack {
+                Text("Skills").font(Theme.small).foregroundStyle(Theme.textMuted)
+                Spacer()
+                XoolButton(action: {
+                    NSWorkspace.shared.open(skillStore.folder)
+                }) {
+                    Text("Open folder").font(Theme.small).foregroundStyle(Theme.textMuted).padding(.horizontal, Theme.Space.s)
+                }
+                XoolButton(action: { skillStore.reload() }) {
+                    Text("Reload").font(Theme.small).foregroundStyle(Theme.textMuted).padding(.horizontal, Theme.Space.s)
+                }
+            }
+            if skillStore.skills.isEmpty {
+                Text("None yet. Put a folder with a SKILL.md in the skills folder, then Reload. The agent's thread calls one with /.")
+                    .font(Theme.small).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
+            } else {
+                ForEach(skillStore.skills) { skill in
+                    Toggle(isOn: Binding(get: { skillNames.contains(skill.name) },
+                                         set: { on in if on { skillNames.insert(skill.name) } else { skillNames.remove(skill.name) } })) {
+                        HStack(spacing: Theme.Space.s) {
+                            Text("/" + skill.name).font(Theme.label).foregroundStyle(Theme.text)
+                            Text(skill.description).font(Theme.small).foregroundStyle(Theme.textMuted).lineLimit(1)
+                        }
+                    }
+                    .toggleStyle(.checkbox)
+                    .accessibilityLabel("Skill \(skill.name)")
+                }
+            }
         }
     }
 
@@ -202,9 +240,12 @@ struct AgentEditor: View {
         guard !trimmed.isEmpty else { return }
         if var agent = editing {
             agent.name = trimmed; agent.color = color; agent.instructions = instructions; agent.model = model
+            agent.skills = skillNames.sorted()
             store.update(agent)
         } else {
-            store.add(name: trimmed, color: color, instructions: instructions, model: model)
+            var made = store.add(name: trimmed, color: color, instructions: instructions, model: model)
+            made.skills = skillNames.sorted()
+            store.update(made)
         }
         ui.showNewAgent = false
     }

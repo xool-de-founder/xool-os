@@ -21,6 +21,10 @@ struct ThreadView: View {
             Theme.line.frame(height: 1)
             if let thread, let agent {
                 messages(thread, agent)
+                if let ask = runtime.asking[thread.id] {
+                    SiteQuestion(ask: ask, agent: agent, thread: thread.id)
+                }
+                slashMenu(agent)
                 composer(thread, agent)
             } else {
                 Spacer()
@@ -94,8 +98,8 @@ struct ThreadView: View {
             VStack(alignment: .leading, spacing: Theme.Space.s) {
                 Spacer()
                 Text("Ask \(agent.name) something").font(Theme.heading).foregroundStyle(Theme.text)
-                ForEach(Self.starters, id: \.self) { text in
-                    XoolButton(action: { runtime.send(text, in: thread.id) }) {
+                ForEach(starters(agent), id: \.self) { text in
+                    XoolButton(action: { if text.hasPrefix("/") { draft = text + " "; typing = true } else { runtime.send(text, in: thread.id) } }) {
                         Text(text).font(Theme.body).foregroundStyle(Theme.text)
                             .padding(.horizontal, Theme.Space.m).frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -124,6 +128,44 @@ struct ThreadView: View {
 
     static let starters = ["What can you help me with?", "Explain this like I'm new to it", "Draft a short reply for me"]
 
+    /// Three suggestions: the agent's own skills first.
+    private func starters(_ agent: Agent) -> [String] {
+        let skills = SkillStore.shared.skills(for: agent).prefix(3).map { "/" + $0.name }
+        return Array((skills + Self.starters).prefix(3))
+    }
+
+    // MARK: skills
+
+    /// `/` at the start of the input: the agent's skills, narrowed as you type.
+    @ViewBuilder
+    private func slashMenu(_ agent: Agent) -> some View {
+        if draft.hasPrefix("/"), !draft.contains(where: \.isWhitespace) {
+            let typed = Skill.slug(String(draft.dropFirst()))
+            let found = SkillStore.shared.skills(for: agent).filter { typed.isEmpty || $0.name.hasPrefix(typed) }
+            VStack(alignment: .leading, spacing: 0) {
+                if found.isEmpty {
+                    Text(SkillStore.shared.skills(for: agent).isEmpty ? "No skills on this agent yet. Add some when you edit it." : "No skill starts with that.")
+                        .font(Theme.small).foregroundStyle(Theme.textMuted).padding(Theme.Space.s)
+                }
+                ForEach(found.prefix(6)) { skill in
+                    XoolButton(action: { draft = "/" + skill.name + " "; typing = true }) {
+                        HStack(spacing: Theme.Space.s) {
+                            Text("/" + skill.name).font(Theme.label).foregroundStyle(Theme.text)
+                            Text(skill.description).font(Theme.small).foregroundStyle(Theme.textMuted).lineLimit(1)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, Theme.Space.s)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .accessibilityLabel("Skill \(skill.name). \(skill.description)")
+                }
+            }
+            .padding(Theme.Space.xs)
+            .background(Theme.surface)
+            .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+        }
+    }
+
     @ViewBuilder
     private func bubble(_ message: ChatMessage, _ agent: Agent) -> some View {
         if message.role == .user {
@@ -136,9 +178,12 @@ struct ThreadView: View {
                 .accessibilityLabel("You: \(message.text)")
         } else {
             VStack(alignment: .leading, spacing: 4) {
+                if let steps = message.steps, !steps.isEmpty {
+                    StepLog(steps: steps, color: agent.color)
+                }
                 if !message.text.isEmpty {
                     Text(message.text).font(Theme.body).foregroundStyle(Theme.text).textSelection(.enabled)
-                } else if message.failed == nil {
+                } else if message.failed == nil, message.steps?.isEmpty != false {
                     Text("…").font(Theme.body).foregroundStyle(Theme.textMuted)
                 }
                 if let model = message.model, !message.text.isEmpty {
@@ -241,5 +286,123 @@ struct ThreadSidebar: View {
         }
         .frame(width: ui.sidebarWidth)
         .transition(Motion.reduced ? .identity : .move(edge: .trailing).combined(with: .opacity))
+    }
+}
+
+// MARK: - what the agent does
+
+/// The agent's steps in the thread: "Opens example.com", "Clicks Next", each
+/// a line that takes you to the tab it happened in.
+struct StepLog: View {
+    let steps: [AgentStep]
+    let color: AgentColor
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(steps) { step in StepRow(step: step, color: color) }
+        }
+        .padding(.bottom, 4)
+    }
+}
+
+struct StepRow: View {
+    let step: AgentStep
+    let color: AgentColor
+
+    private var symbol: String {
+        switch step.kind {
+        case .search: return "magnifyingglass"
+        case .open: return "arrow.up.right.square"
+        case .read: return "doc.text"
+        case .click: return "cursorarrow.click"
+        case .type: return "keyboard"
+        case .wait: return "hourglass"
+        case .back: return "chevron.backward"
+        case .skill: return "wand.and.stars"
+        case .other: return "wrench"
+        }
+    }
+
+    private var jumps: Bool { step.tab != nil || step.url != nil }
+
+    var body: some View {
+        XoolButton(radius: Theme.Radius.chip, action: { AgentJump.go(step) }) {
+            HStack(spacing: Theme.Space.s) {
+                Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(color.solid).frame(width: 14)
+                Text(step.text).font(Theme.small)
+                    .foregroundStyle(step.state == .failed ? Theme.textMuted : Theme.text).lineLimit(1)
+                Spacer(minLength: 0)
+                switch step.state {
+                case .running: ProgressView().controlSize(.mini).scaleEffect(0.7).frame(width: 14, height: 14)
+                case .done: Image(systemName: "checkmark").font(.system(size: 9, weight: .semibold)).foregroundStyle(Theme.faint)
+                case .failed: Image(systemName: "exclamationmark.circle").font(.system(size: 10)).foregroundStyle(Theme.textMuted)
+                }
+            }
+            .padding(.horizontal, 4)
+            .frame(maxWidth: .infinity, minHeight: 22, alignment: .leading)
+        }
+        .disabled(!jumps)
+        .frame(minHeight: 22)
+        .help(step.note ?? (jumps ? "Go to this tab" : step.text))
+        .accessibilityLabel("\(step.text), \(step.state == .running ? "running" : step.state == .done ? "done" : "failed")")
+        .accessibilityHint(jumps ? "Goes to its tab" : "")
+    }
+}
+
+/// A step's tab, or its page where the tab is gone.
+@MainActor
+enum AgentJump {
+    static func go(_ step: AgentStep) {
+        if let id = step.tab {
+            for browser in Browsers.all {
+                if let tab = browser.tabs.first(where: { $0.id == id }) {
+                    browser.window?.makeKeyAndOrderFront(nil)
+                    browser.select(tab)
+                    return
+                }
+            }
+        }
+        if let text = step.url, let url = URL(string: text), ["http", "https"].contains(url.scheme ?? "") {
+            Browsers.frontBrowser.open(url, foreground: true)
+        }
+    }
+}
+
+/// "<agent> wants to use example.com": Allow (kept for this agent), only for
+/// this run, or Deny. The agent waits for the answer.
+struct SiteQuestion: View {
+    let ask: SitePermission
+    let agent: Agent
+    let thread: UUID
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.s) {
+            HStack(spacing: Theme.Space.s) {
+                AgentAvatar(color: agent.color, size: 18)
+                Text("\(agent.name) wants to use \(ask.host)")
+                    .font(Theme.label).foregroundStyle(Theme.text).lineLimit(2)
+            }
+            Text("It reads and clicks in a tab of its own that you can watch. It never types passwords, cards or codes.")
+                .font(Theme.small).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: Theme.Space.s) {
+                XoolButton(action: { AgentRuntime.shared.resolve(thread, .always) }) {
+                    Text("Always allow").font(Theme.label).foregroundStyle(Theme.text).padding(.horizontal, Theme.Space.s)
+                }
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.row, style: .continuous).strokeBorder(agent.color.solid))
+                XoolButton(action: { AgentRuntime.shared.resolve(thread, .thisRun) }) {
+                    Text("This run only").font(Theme.label).foregroundStyle(Theme.text).padding(.horizontal, Theme.Space.s)
+                }
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.row, style: .continuous).strokeBorder(Theme.line))
+                Spacer(minLength: 0)
+                XoolButton(action: { AgentRuntime.shared.resolve(thread, .deny) }) {
+                    Text("Don't allow").font(Theme.label).foregroundStyle(Theme.textMuted).padding(.horizontal, Theme.Space.s)
+                }
+            }
+        }
+        .padding(Theme.Space.m)
+        .background(agent.color.bg)
+        .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(agent.name) asks to use \(ask.host)")
     }
 }

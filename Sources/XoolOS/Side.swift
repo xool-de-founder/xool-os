@@ -307,7 +307,7 @@ struct SideBar: View {
             }
             .padding(.bottom, (browser.player == nil ? 0 : rowHeight + SideBar.playerGap)
                      + (agentHere && !icons ? agentCard + SideBar.playerGap : 0)
-                     + (xoolAgents.isEmpty || icons ? 0 : SidebarAgents.height(count: xoolAgents.count) + SideBar.playerGap))
+                     + (xoolAgents.isEmpty || icons ? 0 : SidebarAgents.height(agents: xoolStore.byActivity, tabs: browser.tabs) + SideBar.playerGap))
 
             VStack(spacing: 0) {
                 Spacer()
@@ -321,7 +321,7 @@ struct SideBar: View {
                 }
                 // Xool's agents: a colour and a name each; a click opens its thread.
                 if !xoolAgents.isEmpty, !icons {
-                    SidebarAgents()
+                    SidebarAgents(browser: browser)
                         .padding(.horizontal, 10)
                         .padding(.bottom, SideBar.playerGap)
                 }

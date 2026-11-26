@@ -107,9 +107,12 @@ final class ModelRouter: ObservableObject {
 
     /// Where one turn goes, given what the DecisionModel said. An agent's
     /// own model is the user's explicit word and is never overruled.
-    func route(_ decision: Decision, agent: Agent?) -> Route? {
-        let role: ModelRole = decision.needsTools ? .agent : .chat
+    func route(_ decision: Decision, agent: Agent?, spoken: Bool = false) -> Route? {
+        let role: ModelRole = decision.needsTools ? .agent : (spoken ? .voice : .chat)
         guard var primary = choice(for: role, agent: agent) else { return nil }
+        // A spoken answer to a plain question: the quick model, unless the user chose one.
+        if spoken, !decision.needsTools, agent?.model == nil, configured(.voice) == nil,
+           primary.isLocal, let quick = OllamaCatalog.shared.quickVoice() { primary = quick }
         if decision.preferCloud, agent?.model == nil, let cloud = cloudFallback(agent: agent) { primary = cloud }
         let fallback = primary.isLocal ? cloudFallback(agent: agent) : nil
         return Route(primary: primary, fallback: fallback, role: role)

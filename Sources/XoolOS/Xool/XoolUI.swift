@@ -274,6 +274,13 @@ extension XoolUI {
                 VoiceBridge.shared.listenToJarvis()
             case "jarvisfeed" where Store.testing || getenv("XOOL_PROFILE") != nil:
                 if pieces.count > 1 { VoiceBridge.shared.feedJarvis(file: URL(fileURLWithPath: pieces[1])) }
+            // `jarvisfree[open]:<wav>`: as in a conversation, unaddressed (the session closed, or `open`);
+            // `voicesave:<seconds>|<wav>`: after a while, the recording of what Jarvis said.
+            case "jarvisfree" where Store.testing, "jarvisfreeopen" where Store.testing:
+                if pieces.count > 1 { VoiceBridge.shared.feedConversation(file: URL(fileURLWithPath: pieces[1]), open: pieces[0] == "jarvisfreeopen") }
+            case "voicesave" where Store.testing:
+                let k = (pieces.count > 1 ? pieces[1] : "").split(separator: "|", maxSplits: 1).map(String.init)
+                if k.count == 2 { DispatchQueue.main.asyncAfter(deadline: .now() + (Double(k[0]) ?? 20)) { VoiceBridge.shared.saveOutput(to: k[1]) } }
             case "jarvisstatus" where Store.testing || getenv("XOOL_PROFILE") != nil:
                 let k = (pieces.count > 1 ? pieces[1] : "").split(separator: "|", maxSplits: 1).map(String.init)
                 if k.count == 2 {

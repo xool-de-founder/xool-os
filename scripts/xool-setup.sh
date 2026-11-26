@@ -321,8 +321,13 @@ else
       && ok "Voice downloaded." \
       || die "The voice download failed." "Check your internet connection, then run this again."
   fi
-  info "The first time you talk, Whisper (the ears, about 1.5 GB) downloads once."
-  info "macOS asks for the microphone then. Click Allow."
+  if [ "$MODE" != "check" ] && [ -x "$PY" ]; then
+    info "Getting the ears (Whisper, about 1.6 GB) and making 300 ready phrases …"
+    ( cd "$SRC" && PYTHONPATH="$SRC" XOOL_VOICE_HOME="$VOICE_HOME" "$PY" -m xool_voice --prepare ) \
+      && ok "The voice is ready, ears and phrases included." \
+      || { bad "The ears or the phrases weren't prepared."; problem; info "They are fetched the first time you talk."; }
+  fi
+  info "macOS asks for the microphone the first time you talk. Click Allow."
 fi
 
 # ----- Done ------------------------------------------------------------------

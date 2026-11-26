@@ -41,12 +41,16 @@ final class ChatRuntime: ObservableObject {
 
     static func systemPrompt(for agent: Agent) -> String {
         var text = "You are \(agent.name), an assistant inside Xool OS, a web browser on the user's Mac. Answer in the language the user writes in. Be brief and concrete."
+        // Jarvis hears and speaks. Without this he says he can't, when dictated text arrives.
+        text += "\n\n" + VoiceBridge.shared.abilities
         let own = agent.instructions.trimmingCharacters(in: .whitespacesAndNewlines)
         if !own.isEmpty { text += "\n\n" + own }
         return text
     }
 
-    func send(_ text: String, in threadID: UUID) {
+    /// `decision` is the instant judgement of a spoken sentence (no model asked); `spoken`: the
+    /// answer will be read aloud, so a quick voice model may answer a plain question.
+    func send(_ text: String, in threadID: UUID, decision given: Decision? = nil, spoken: Bool = false) {
         let store = AgentStore.shared
         let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !thinking.contains(threadID), let thread = store.thread(threadID),
@@ -67,13 +71,14 @@ final class ChatRuntime: ObservableObject {
         tasks[threadID] = Task { @MainActor [weak self] in
             // A small local model says whether this needs tools and whether
             // the cloud is worth it; any trouble is the standard route.
-            let decision = await DecisionModel.decide(text, recent: history.dropLast().map(\.text))
+            let decision: Decision
+            if let given { decision = given } else { decision = await DecisionModel.decide(text, recent: history.dropLast().map(\.text)) }
             guard !Task.isCancelled else { return }
             // Tools unless the small model said it is just a question. A skill
             // called by hand, or a decision that couldn't be made, gets them.
             let withTools = invoked != nil || !decision.decided || decision.needsTools || text.contains("xool-brain://")
             let asked = withTools ? Decision(needsTools: true, preferCloud: decision.preferCloud, decided: decision.decided) : decision
-            guard let route = ModelRouter.shared.route(asked, agent: agent) else {
+            guard let route = ModelRouter.shared.route(asked, agent: agent, spoken: spoken) else {
                 self?.fail(threadID, "No model is chosen. Pick one in the bar below, or start Ollama.")
                 self?.finish(threadID, error: nil, provider: nil, quiet: true)
                 return

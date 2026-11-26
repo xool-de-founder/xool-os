@@ -70,7 +70,10 @@ struct AgentsOverview: View {
                         .reportsFrame("slot.\(jarvis.id)")
                         .opacity(flight.slotsHidden ? 0 : 1)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(jarvis.name).font(Theme.heading).foregroundStyle(Theme.text)
+                        HStack(spacing: Theme.Space.xs) {
+                            Text(jarvis.name).font(Theme.heading).foregroundStyle(Theme.text)
+                            VoiceStatusLine()
+                        }
                         Text(last?.lastLine ?? "Your chief agent. Ask, or let him hand it on.")
                             .font(Theme.small).foregroundStyle(Theme.textMuted).lineLimit(2)
                             .multilineTextAlignment(.leading)
@@ -81,9 +84,11 @@ struct AgentsOverview: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .accessibilityLabel("\(jarvis.name), chief agent. \(last?.lastLine ?? "No messages yet")")
-            // Talk to him: dictate, or type and press Return.
+            VoiceSetupCard()
+            // Talk to him: the waveform opens a conversation (microphone open, he answers aloud);
+            // or type and press Return.
             HStack(spacing: Theme.Space.xs) {
-                DictationButton(deliver: { text in message = text; typing = true }, size: 28)
+                ConversationButton(size: 28)
                 TextField("Talk to \(jarvis.name)", text: $message)
                     .textFieldStyle(.plain).font(Theme.body).focused($typing)
                     .onSubmit(sendToJarvis)

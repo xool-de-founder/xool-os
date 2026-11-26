@@ -99,6 +99,21 @@ final class OllamaCatalog: ObservableObject {
         .sorted { $0.name < $1.name }
     }
 
+    /// The models a voice does best with, quick ones first (from jarvis-on-nod's MODEL_PREFERENCE).
+    static let voicePreference = ["qwen3.6:35b-a3b", "qwen3-30b", "qwen3:30b", "gemma4:12b", "qwen3.6:35b", "qwen3.5:35b", "gpt-oss:20b",
+                                  "gemma4", "qwen3.6", "qwen3.5:27b", "qwen3.5", "qwen3"]
+
+    /// The quickest good model installed for a spoken answer, if any is on the list.
+    func quickVoice() -> ModelChoice? {
+        let names = installed.map(\.name)
+        for wanted in Self.voicePreference {
+            if let hit = names.first(where: { $0 == wanted || $0.hasPrefix(wanted) }) {
+                return ModelChoice(provider: AIProvider.ollama.rawValue, model: hit)
+            }
+        }
+        return nil
+    }
+
     /// The smallest installed model under 6 GB, for the quick decisions,
     /// when none is chosen: embedding models don't chat and are skipped.
     var smallest: OllamaModel? {

@@ -3,6 +3,19 @@ import AVFoundation
 import Speech
 import NaturalLanguage
 
+/// What the sidecar made of a sentence it heard, before any model read it.
+struct Heard: Equatable {
+    /// The situation, for a bridge phrase ("frage", "websuche", …).
+    var kind = ""
+    /// "wissen", "web", "browser", "brain", "delegate" or "calc" (empty: not judged).
+    var route = ""
+    var tools = false
+    /// The assistant's name was said.
+    var named = false
+    /// Milliseconds Whisper took.
+    var ms = 0
+}
+
 /// What an engine tells the bridge.
 enum VoiceEvent {
     case ready(String)
@@ -12,11 +25,15 @@ enum VoiceEvent {
     /// You talked over the voice: it is already silent.
     case bargeIn
     /// What you said; `kind` is the situation ("frage", "befehl", …) for a bridge phrase.
-    case transcript(String, kind: String)
+    case transcript(String, Heard)
     case speaking(Bool)
     /// Nothing is being said any more.
     case idle
     case bridge(String)
+    /// The ears are loaded and the models warm: the next sentence is understood at once.
+    case warm
+    /// "Hey Jarvis" was heard (openWakeWord).
+    case wake
     case error(String, mic: Bool, fatal: Bool)
 }
 
@@ -35,6 +52,8 @@ protocol VoiceEngine: AnyObject {
     func ptt(down: Bool)
     func say(_ text: String, first: Bool)
     func bridge(_ kind: String)
+    /// Listen for "Hey Jarvis" (sidecar only; others ignore it).
+    func wake(_ on: Bool)
     func stop()
     /// Test input: a WAV file in place of the microphone.
     func transcribe(file: URL)
@@ -80,8 +99,11 @@ final class SidecarEngine: VoiceEngine {
         guard let source = Self.source, Self.installed else { throw VoiceError.notInstalled }
         let process = Process()
         process.executableURL = Self.python
-        var args = ["-m", "xool_voice", "--serve", "--language", VoiceBridge.language.split(separator: "-").first.map(String.init) ?? "de"]
+        var args = ["-m", "xool_voice", "--serve", "--language", VoiceBridge.language.split(separator: "-").first.map(String.init) ?? "de",
+                    "--name", AgentStore.shared.jarvis.name, "--pause", String(VoiceBridge.pause)]
         if getenv("XOOL_VOICE_NULL") != nil { args.append("--null-audio") }
+        // Tests: a recording of what would be said, and a recorded WAV as the microphone.
+        if let record = getenv("XOOL_VOICE_RECORD") { _ = record; args.append("--record") }
         process.arguments = args
         process.currentDirectoryURL = source
         var env = ProcessInfo.processInfo.environment
@@ -141,18 +163,30 @@ final class SidecarEngine: VoiceEngine {
             case "ready": onEvent?(.ready(json["tts"] as? String ?? ""))
             case "loading": onEvent?(.loading(json["what"] as? String ?? ""))
             case "speech_start": onEvent?(.speechStart)
-            case "barge_in": onEvent?(.bargeIn)
-            case "transcript": onEvent?(.transcript(json["text"] as? String ?? "", kind: json["kind"] as? String ?? ""))
+            case "transcript":
+                onEvent?(.transcript(json["text"] as? String ?? "", Heard(
+                    kind: json["kind"] as? String ?? "", route: json["route"] as? String ?? "",
+                    tools: json["tools"] as? Bool ?? false, named: json["named"] as? Bool ?? false,
+                    ms: (json["ms_stt"] as? NSNumber)?.intValue ?? 0)))
+            case "warm": onEvent?(.warm)
+            case "wake": onEvent?(.wake)
             case "speaking": onEvent?(.speaking(json["on"] as? Bool ?? false))
             case "idle": onEvent?(.idle)
             case "bridge": onEvent?(.bridge(json["text"] as? String ?? ""))
+            case "sound", "barge_in", "bridges", "saved":
+                if Store.testing { FileHandle.standardError.write(Data("voice \(ev): \(json)\n".utf8)) }
+                VoiceBridge.log("sidecar \(ev) \(json)")
+                if ev == "barge_in" { onEvent?(.bargeIn) }
             case "error": onEvent?(.error(json["text"] as? String ?? "Voice error", mic: json["mic"] as? Bool ?? false, fatal: json["fatal"] as? Bool ?? false))
             default: break
             }
         }
     }
 
-    func listen(_ mode: ListenMode, bargeIn: Bool) { send(["cmd": "listen", "mode": mode.rawValue, "barge_in": bargeIn]) }
+    func listen(_ mode: ListenMode, bargeIn: Bool) { send(["cmd": "listen", "mode": mode.rawValue, "barge_in": bargeIn, "pause": VoiceBridge.pause]) }
+    func wake(_ on: Bool) { send(["cmd": "wake", "on": on]) }
+    /// Tests: what would have come out of the speakers, as a WAV.
+    func saveOutput(to path: String) { send(["cmd": "save_out", "path": path]) }
     func ptt(down: Bool) { send(["cmd": "ptt", "down": down]) }
     func say(_ text: String, first: Bool) { send(["cmd": "say", "text": text, "first": first]) }
     func bridge(_ kind: String) { send(["cmd": "bridge", "kind": kind]) }
@@ -204,7 +238,7 @@ final class NativeEngine: NSObject, VoiceEngine, AVSpeechSynthesizerDelegate {
                     guard let self else { return }
                     guard status == .authorized else {
                         self.onEvent?(.error("Allow speech recognition for Xool OS in System Settings › Privacy & Security › Speech Recognition.", mic: true, fatal: false))
-                        self.onEvent?(.transcript("", kind: ""))
+                        self.onEvent?(.transcript("", Heard()))
                         return
                     }
                     self.beginCapture()
@@ -221,7 +255,7 @@ final class NativeEngine: NSObject, VoiceEngine, AVSpeechSynthesizerDelegate {
     private func beginCapture() {
         guard task == nil, let recognizer, recognizer.isAvailable else {
             onEvent?(.error("Speech recognition isn't available for this language.", mic: false, fatal: false))
-            onEvent?(.transcript("", kind: ""))
+            onEvent?(.transcript("", Heard()))
             return
         }
         let request = SFSpeechAudioBufferRecognitionRequest()
@@ -232,7 +266,7 @@ final class NativeEngine: NSObject, VoiceEngine, AVSpeechSynthesizerDelegate {
         let format = input.outputFormat(forBus: 0)
         guard format.sampleRate > 0 else {
             onEvent?(.error("The microphone isn't available.", mic: true, fatal: false))
-            onEvent?(.transcript("", kind: ""))
+            onEvent?(.transcript("", Heard()))
             self.request = nil
             return
         }
@@ -242,7 +276,7 @@ final class NativeEngine: NSObject, VoiceEngine, AVSpeechSynthesizerDelegate {
             input.removeTap(onBus: 0)
             self.request = nil
             onEvent?(.error("The microphone couldn't start: \(error.localizedDescription)", mic: true, fatal: false))
-            onEvent?(.transcript("", kind: ""))
+            onEvent?(.transcript("", Heard()))
             return
         }
         onEvent?(.speechStart)
@@ -253,11 +287,11 @@ final class NativeEngine: NSObject, VoiceEngine, AVSpeechSynthesizerDelegate {
                 if let result, result.isFinal {
                     delivered = true
                     self.task = nil
-                    self.onEvent?(.transcript(result.bestTranscription.formattedString, kind: ""))
+                    self.onEvent?(.transcript(result.bestTranscription.formattedString, Heard()))
                 } else if error != nil {
                     delivered = true
                     self.task = nil
-                    self.onEvent?(.transcript("", kind: ""))
+                    self.onEvent?(.transcript("", Heard()))
                 }
             }
         }
@@ -272,7 +306,7 @@ final class NativeEngine: NSObject, VoiceEngine, AVSpeechSynthesizerDelegate {
             guard let self, let current, self.task === current else { return }
             current.cancel()
             self.task = nil
-            self.onEvent?(.transcript("", kind: ""))
+            self.onEvent?(.transcript("", Heard()))
         }
     }
 
@@ -287,10 +321,20 @@ final class NativeEngine: NSObject, VoiceEngine, AVSpeechSynthesizerDelegate {
         let utterance = AVSpeechUtterance(string: text)
         // The voice follows the sentence's language.
         let language = NLLanguageRecognizer.dominantLanguage(for: text)?.rawValue ?? VoiceBridge.language
-        utterance.voice = AVSpeechSynthesisVoice(language: language.contains("-") ? language : Self.locale(for: language))
-            ?? AVSpeechSynthesisVoice(language: VoiceBridge.language)
+        let locale = language.contains("-") ? language : Self.locale(for: language)
+        utterance.voice = Self.bestVoice(locale) ?? AVSpeechSynthesisVoice(language: locale) ?? AVSpeechSynthesisVoice(language: VoiceBridge.language)
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 1.04
         pending += 1
         synth.speak(utterance)
+    }
+
+    /// The best voice installed for the language: premium, then enhanced, then the plain one.
+    static func bestVoice(_ locale: String) -> AVSpeechSynthesisVoice? {
+        let prefix = String(locale.prefix(2))
+        let all = AVSpeechSynthesisVoice.speechVoices().filter { $0.language.hasPrefix(prefix) }
+        let exact = all.filter { $0.language == locale }
+        func rank(_ v: AVSpeechSynthesisVoice) -> Int { v.quality == .premium ? 3 : v.quality == .enhanced ? 2 : 1 }
+        return (exact.isEmpty ? all : exact).max { rank($0) < rank($1) }
     }
 
     private static func locale(for language: String) -> String {
@@ -299,6 +343,7 @@ final class NativeEngine: NSObject, VoiceEngine, AVSpeechSynthesizerDelegate {
     }
 
     func bridge(_ kind: String) {}
+    func wake(_ on: Bool) {}
 
     func stop() {
         pending = 0
@@ -311,8 +356,8 @@ final class NativeEngine: NSObject, VoiceEngine, AVSpeechSynthesizerDelegate {
         task = recognizer.recognitionTask(with: request) { [weak self] result, error in
             DispatchQueue.main.async {
                 guard let self else { return }
-                if let result, result.isFinal { self.task = nil; self.onEvent?(.transcript(result.bestTranscription.formattedString, kind: "")) }
-                else if error != nil { self.task = nil; self.onEvent?(.transcript("", kind: "")) }
+                if let result, result.isFinal { self.task = nil; self.onEvent?(.transcript(result.bestTranscription.formattedString, Heard())) }
+                else if error != nil { self.task = nil; self.onEvent?(.transcript("", Heard())) }
             }
         }
     }

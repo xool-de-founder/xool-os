@@ -38,18 +38,18 @@ final class LocalSetup: ObservableObject {
         return candidates.compactMap { $0 }.first { FileManager.default.isReadableFile(atPath: $0.path) }
     }
 
-    func start(check: Bool = false) {
+    func start(check: Bool = false, onlyVoice: Bool = false) {
         guard !running else { return }
         guard let script = Self.script else {
             phase = .failed(what: "The setup script isn't in this build.",
                             next: "Run it in Terminal: curl -fsSL https://raw.githubusercontent.com/xool-de-founder/xool-os/main/scripts/xool-setup.sh | bash")
             return
         }
-        lines = []; step = 0; title = "Starting"; download = nil; lastBad = nil; cancelled = false; carry = Data()
+        lines = []; step = 0; steps = onlyVoice ? 2 : 6; title = "Starting"; download = nil; lastBad = nil; cancelled = false; carry = Data()
         phase = .running
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/bash")
-        process.arguments = [script.path, "--yes"] + (check ? ["--check"] : [])
+        process.arguments = [script.path, "--yes"] + (check ? ["--check"] : []) + (onlyVoice ? ["--only-voice"] : [])
         var env = ProcessInfo.processInfo.environment
         // An app starts with a short PATH: Ollama and uv live elsewhere.
         env["PATH"] = ["/usr/local/bin", "/opt/homebrew/bin", NSHomeDirectory() + "/.local/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin", env["PATH"] ?? ""].joined(separator: ":")
@@ -235,7 +235,25 @@ struct VoiceSettingsCard: View {
                 Switch(on: $entry.menuBar)
             }
             Rule()
-            Line("Talk over the voice", "Hands-free: start talking and the voice stops at once. Turn off if it hears itself through the speakers") {
+            Line("Conversation", "⌥⌘J pressed briefly, or the waveform in Jarvis' office: the microphone stays open and you needn't press a key per sentence") {
+                Pill(voice.conversing ? "End" : "Start", filled: !voice.conversing) { VoiceBridge.shared.toggleConversation() }
+            }
+            Rule()
+            Line("Follow-ups without his name", "After “Jarvis …” or an answer he keeps listening this long. Sentences that aren't for him are ignored") {
+                Segmented(options: [("10", "10 s"), ("20", "20 s"), ("40", "40 s")], selection: Binding(
+                    get: { String(Int(voice.sessionSeconds)) }, set: { voice.sessionSeconds = Double($0) ?? 20 }))
+            }
+            Rule()
+            Line("Pause that ends your sentence", "How long you can be quiet before he answers. Shorter is quicker, longer lets you think aloud") {
+                Segmented(options: [("0.35", "0.35 s"), ("0.5", "0.5 s"), ("0.8", "0.8 s")], selection: Binding(
+                    get: { String(format: "%g", voice.pauseSeconds) }, set: { voice.pauseSeconds = Double($0) ?? 0.5 }))
+            }
+            Rule()
+            Line("Say “Hey Jarvis”", "Wakes him without a key (openWakeWord, on this Mac). Needs the better voice") {
+                Switch(on: $voice.wakeWord)
+            }
+            Rule()
+            Line("Talk over the voice", "Start talking and the voice stops at once. Turn off if it hears itself through the speakers; headphones always work") {
                 Switch(on: $voice.bargeIn)
             }
             Rule()

@@ -68,3 +68,48 @@ enum DecisionModel {
         return Decision(needsTools: json["tools"] as? Bool ?? false, preferCloud: json["cloud"] as? Bool ?? false, decided: true)
     }
 }
+
+// MARK: - was I meant? (docs/PLAN.md 9, D)
+
+extension DecisionModel {
+    static let addresseeSystem = """
+    You listen in on a room where a voice assistant called "{name}" waits. You get one sentence the microphone picked up, \
+    and what was said before. Decide whether the sentence is meant for the assistant. Reply with one line of JSON and nothing else:
+    {"to_assistant": true|false}
+    true: the person asks the assistant something, gives it a task, or follows up on what it just said.
+    false: the person talks to someone else in the room or on the phone, talks to themselves, reads something aloud, \
+    or it is the television or a recording.
+    {session}
+    """
+
+    /// True: meant for the assistant. False: not. Nil: the small model isn't there or didn't answer in time
+    /// (the caller then decides by whether a conversation is open).
+    static func addressed(_ text: String, name: String, recent: [String], inSession: Bool, timeout: UInt64 = 1_800_000_000) async -> Bool? {
+        guard let choice = model(), let provider = choice.aiProvider, provider != .thisMac else { return nil }
+        let system = addresseeSystem
+            .replacingOccurrences(of: "{name}", with: name)
+            .replacingOccurrences(of: "{session}", with: inSession
+                ? "A conversation with the assistant is open right now: short follow-ups and answers are most likely for it."
+                : "No conversation is open: without its name, or a clear question or order for an assistant, say false.")
+        var ask = recent.suffix(3).map { "Earlier: " + String($0.prefix(160)) }.joined(separator: "\n")
+        if !ask.isEmpty { ask += "\n" }
+        ask += "Sentence: " + String(text.prefix(400))
+        let started = Date()
+        let stream = AIClient.shared.stream(provider, model: choice.model, system: system,
+                                            messages: [AIMessage(role: .user, text: ask)], key: nil)
+        let reading = Task { () -> String in
+            var said = ""
+            do { for try await piece in stream { said += piece; if said.contains("}") || said.count > 200 { break } } } catch { return "" }
+            return said
+        }
+        let timer = Task { try? await Task.sleep(nanoseconds: timeout); reading.cancel() }
+        let said = await reading.value
+        timer.cancel()
+        var verdict: Bool?
+        if let open = said.firstIndex(of: "{"), let close = said.lastIndex(of: "}"), open < close,
+           let json = try? JSONSerialization.jsonObject(with: Data(said[open...close].utf8)) as? [String: Any],
+           let to = json["to_assistant"] as? Bool { verdict = to }
+        VoiceBridge.log("addressee: \"\(text.prefix(60))\" → \(verdict.map { $0 ? "for \(name)" : "not for \(name)" } ?? "unknown") in \(Int(Date().timeIntervalSince(started) * 1000)) ms via \(choice.model)")
+        return verdict
+    }
+}

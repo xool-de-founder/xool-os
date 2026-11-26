@@ -100,7 +100,16 @@ final class JarvisEntry: ObservableObject {
     /// Right-click: recent threads, open Xool, the voice switched off or on.
     private func showMenu() {
         let menu = NSMenu()
-        let talk = NSMenuItem(title: VoiceBridge.shared.listeningNow ? "Stop listening" : "Talk to Jarvis", action: #selector(talk), keyEquivalent: "")
+        let status = NSMenuItem(title: "Voice: \(VoiceBridge.shared.status.title)", action: nil, keyEquivalent: "")
+        status.isEnabled = false
+        menu.addItem(status)
+        if VoiceBridge.shared.status == .missing {
+            let setup = NSMenuItem(title: "Set up the voice…", action: #selector(setupVoice), keyEquivalent: "")
+            setup.target = self
+            menu.addItem(setup)
+        }
+        let talking = VoiceBridge.shared.listeningNow || VoiceBridge.shared.conversing
+        let talk = NSMenuItem(title: talking ? "End the conversation" : "Talk to Jarvis", action: #selector(talk), keyEquivalent: "")
         talk.target = self
         menu.addItem(talk)
         let store = AgentStore.shared
@@ -131,6 +140,11 @@ final class JarvisEntry: ObservableObject {
     }
 
     @objc private func talk() { VoiceBridge.shared.listenToJarvis() }
+    /// The card with the button is in Jarvis' office.
+    @objc private func setupVoice() {
+        openApp()
+        XoolUI.shared.showAgents = true
+    }
     @objc private func openApp() { NSApp.activate(ignoringOtherApps: true); Browsers.frontBrowser.window?.makeKeyAndOrderFront(nil) }
     @objc private func toggleKey() { keyOn.toggle() }
     @objc private func openThread(_ sender: NSMenuItem) {

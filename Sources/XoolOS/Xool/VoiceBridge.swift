@@ -27,6 +27,12 @@ final class VoiceBridge: ObservableObject {
     static let keyKey = "xool.voice.key"
     static let bargeKey = "xool.voice.bargeIn"
     static let languageKey = "xool.voice.language"
+    static let sessionKey = "xool.voice.session"
+    static let pauseKey = "xool.voice.pause"
+    static let wakeKey = "xool.voice.wake"
+
+    /// How long a quiet moment ends your sentence, in seconds.
+    static var pause: Double { let v = Store.settings.double(forKey: pauseKey); return v > 0 ? v : 0.5 }
 
     /// What you speak: the Mac's first language, German until you say otherwise.
     static var language: String {
@@ -48,6 +54,21 @@ final class VoiceBridge: ObservableObject {
     @Published var bargeIn: Bool {
         didSet { Store.settings.set(bargeIn, forKey: Self.bargeKey); if handsFree { engine?.listen(.vad, bargeIn: bargeIn) } }
     }
+    /// After "Jarvis …" or an answer, follow-ups need no name for this many seconds.
+    @Published var sessionSeconds: Double {
+        didSet { Store.settings.set(sessionSeconds, forKey: Self.sessionKey) }
+    }
+    @Published var pauseSeconds: Double {
+        didSet { Store.settings.set(pauseSeconds, forKey: Self.pauseKey); if handsFree { engine?.listen(.vad, bargeIn: bargeIn) } }
+    }
+    /// "Hey Jarvis" wakes him (openWakeWord, installed on request).
+    @Published var wakeWord: Bool {
+        didSet { Store.settings.set(wakeWord, forKey: Self.wakeKey); engine?.wake(wakeWord) }
+    }
+    /// The ears are loaded and warm.
+    @Published private(set) var warm = false
+    /// A conversation with Jarvis is open (the microphone stays open).
+    @Published private(set) var conversing = false
 
     private var engine: VoiceEngine?
     private let keys = PushToTalkKey()
@@ -66,19 +87,75 @@ final class VoiceBridge: ObservableObject {
         var sentAny = false
         var bridged = false
         var finished = false
+        var kind = "erzaehlung"
+        var route = ""
+        var closing = false
+        var started = Date()
     }
 
     init() {
         key = Store.settings.string(forKey: Self.keyKey) ?? "fn"
         bargeIn = Store.settings.object(forKey: Self.bargeKey) as? Bool ?? true
+        sessionSeconds = Store.settings.object(forKey: Self.sessionKey) as? Double ?? 20
+        pauseSeconds = Self.pause
+        wakeWord = Store.settings.bool(forKey: Self.wakeKey)
         keys.kind = key
         keys.onChange = { [weak self] down in self?.pressed(down) }
         AgentStore.shared.$threads.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.pump() }.store(in: &cancellables)
         ChatRuntime.shared.$thinking.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.pump() }.store(in: &cancellables)
     }
 
-    /// Starts watching the key. Called once when the interface comes up.
-    func install() { keys.install() }
+    /// Starts watching the key and, if the better voice is set up, the sidecar: it
+    /// loads the ears and the phrases now and stays warm, so the first word is understood at once.
+    func install() { keys.install(); autostart() }
+
+    /// The voice's state for the office and the menu bar.
+    var status: VoiceStatus {
+        if LocalSetup.shared.running { return .installing }
+        switch state {
+        case .listening: return .listening
+        case .thinking: return .thinking
+        case .speaking: return .speaking
+        case .idle: break
+        }
+        if !SidecarEngine.installed { return .missing }
+        return warm ? .ready : .starting
+    }
+
+    /// What the model is told about its own ears and mouth.
+    var abilities: String {
+        "You can hear and speak. The user talks to you with the microphone (the waveform button in your office, the key ⌥⌘J, "
+        + "Conversation mode) and you answer aloud; text that arrives from dictation is their speech. "
+        + "Never say that you can't receive speech or answer aloud. "
+        + (SidecarEngine.installed
+           ? "Your own voice (Whisper and Piper, on this Mac) is set up."
+           : "Your own voice isn't set up yet: the card “Set up the voice” in your office installs it (about 2.5 GB); until then you speak with the Mac's own voice.")
+    }
+
+    private var restarts: [Date] = []
+
+    func autostart() {
+        guard SidecarEngine.installed, !(engine is SidecarEngine) else { return }
+        _ = ensureEngine()
+    }
+
+    private func scheduleRestart() {
+        restarts = restarts.filter { Date().timeIntervalSince($0) < 300 } + [Date()]
+        guard SidecarEngine.installed, restarts.count <= 3 else {
+            notice = VoiceNotice(text: "The voice stopped. Press the key again to start it.")
+            return
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in self?.autostart() }
+    }
+
+    /// Asks Ollama to keep the models for a conversation loaded, so the first answer isn't a cold start.
+    private func warmModels() {
+        let names = Set([OllamaCatalog.shared.quickVoice()?.model, ModelStore.shared.current?.model, DecisionModel.model()?.model].compactMap { $0 })
+        guard Store.settings.bool(forKey: "xool.voice.keepWarm") || Store.settings.object(forKey: "xool.voice.keepWarm") == nil else { return }
+        for name in names where OllamaCatalog.shared.installed.contains(where: { $0.name == name }) {
+            Task { _ = await AIClient.shared.ollama("api/generate", method: "POST", body: ["model": name, "prompt": "", "keep_alive": "60m"], timeout: 120) }
+        }
+    }
 
     // MARK: engine
 
@@ -102,7 +179,9 @@ final class VoiceBridge: ObservableObject {
         engine?.shutdown()
         engine = nil
         session = nil
+        warm = false
         state = .idle
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.autostart() }
     }
 
     var usesSidecar: Bool { engine is SidecarEngine }
@@ -184,6 +263,7 @@ final class VoiceBridge: ObservableObject {
         stopEscapeWatch()
         guard state == .listening, let engine else { dictation = nil; state = .idle; return }
         state = .thinking
+        pttPending = true
         engine.ptt(down: false)
     }
 
@@ -219,13 +299,23 @@ final class VoiceBridge: ObservableObject {
             pressed(true)
             if !holding { forcedJarvis = false }
         } else if !down, holding, !latched {
-            if Date().timeIntervalSince(jarvisDownAt) < 0.4 { latched = true } else { pressed(false) }
+            if Date().timeIntervalSince(jarvisDownAt) < 0.4 {
+                // A short press: the conversation (microphone open, no key per sentence).
+                if SidecarEngine.installed {
+                    pttPending = false
+                    discardNext = true
+                    pressed(false)
+                    toggleConversation()
+                } else { latched = true }
+            } else { pressed(false) }
         }
     }
 
     /// Listen to Jarvis now, as a click does (menu bar, App Intent, ⌥-click on
     /// his pill); a second call ends it.
     func listenToJarvis() {
+        if conversing || handsFree { toggleConversation(); return }
+        if SidecarEngine.installed { toggleConversation(); return }
         if latched || holding { latched = false; pressed(false); return }
         latched = true
         forcedJarvis = true
@@ -261,6 +351,7 @@ final class VoiceBridge: ObservableObject {
             latched = false
             guard state == .listening, let engine else { return }
             state = .thinking
+            pttPending = true
             if let target { ChatRuntime.shared.setActivity(target, .thinking) }
             engine.ptt(down: false)
         }
@@ -291,6 +382,42 @@ final class VoiceBridge: ObservableObject {
         }
     }
 
+    /// Conversation mode with Jarvis: the microphone stays open, a pause ends your sentence, you talk over
+    /// him to stop him, and for a while after each answer he needs no name. Without the better voice
+    /// it listens once, until you press again.
+    func toggleConversation() {
+        if handsFree || conversing {
+            conversing = false
+            if handsFree { toggleHandsFree() }
+            sessionUntil = .distantPast
+            return
+        }
+        guard let engine = ensureEngine() else { return }
+        guard engine.handsFree else {
+            if latched || holding { latched = false; pressed(false) } else {
+                latched = true; forcedJarvis = true; pressed(true)
+                if !holding { forcedJarvis = false; latched = false }
+            }
+            return
+        }
+        forcedJarvis = true
+        conversing = true
+        toggleHandsFree()
+        forcedJarvis = false
+        if !handsFree { conversing = false } else { openSession() }
+    }
+
+    // MARK: who is meant
+
+    private var sessionUntil = Date.distantPast
+    /// A turn you started yourself (key, button, dictation): no need to ask whom you meant.
+    private var pttPending = false
+    private var wokeAt = Date.distantPast
+
+    var sessionOpen: Bool { Date() < sessionUntil }
+
+    private func openSession() { sessionUntil = Date().addingTimeInterval(sessionSeconds) }
+
     /// Stop talking and thinking, now.
     func interrupt() {
         if Store.testing { FileHandle.standardError.write(Data("voice interrupt\n".utf8)) }
@@ -307,11 +434,21 @@ final class VoiceBridge: ObservableObject {
         if Store.testing { FileHandle.standardError.write(Data("voice event: \(event)\n".utf8)) }
         switch event {
         case .ready: loading = nil
+        case .warm:
+            warm = true
+            loading = nil
+            engine?.wake(wakeWord)
+            warmModels()
+        case .wake:
+            wokeAt = Date()
+            openSession()
+            Self.log("wake word heard")
         case .loading(let what): loading = what == "ears" ? "Getting the ears ready. The first time this downloads about 1.5 GB." : nil
         case .speechStart:
             // Hands-free: you started talking, to the agent in front.
             if handsFree, !holding {
-                if let thread = pickThread() { target = thread; ChatRuntime.shared.setActivity(thread, .listening) }
+                if conversing, let thread = target { ChatRuntime.shared.setActivity(thread, .listening) }
+                else if let thread = pickThread() { target = thread; ChatRuntime.shared.setActivity(thread, .listening) }
                 state = .listening
                 lastActivity = Date()
             }
@@ -319,11 +456,12 @@ final class VoiceBridge: ObservableObject {
             if let s = session { ChatRuntime.shared.stop(s.thread) }
             session = nil
             state = .listening
-        case .transcript(let text, let kind): heard(text, kind: kind)
+        case .transcript(let text, let info): heard(text, info: info)
         case .speaking(let on):
             if on { state = .speaking }
         case .idle:
             if session?.finished ?? true {
+                if let done = session, done.sentAny { if done.closing { sessionUntil = .distantPast } else { openSession() } }
                 session = nil
                 if state == .speaking || state == .thinking { state = handsFree ? .listening : .idle }
                 afterAnswer()
@@ -332,14 +470,19 @@ final class VoiceBridge: ObservableObject {
         case .error(let text, let mic, let fatal):
             notice = VoiceNotice(text: text, settings: mic ? URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") : nil,
                                  setup: fatal && !SidecarEngine.installed)
-            if fatal { engine = nil; state = .idle; holding = false; handsFree = false }
+            if fatal {
+                engine = nil; state = .idle; holding = false; handsFree = false; conversing = false; warm = false
+                notice = nil
+                scheduleRestart()
+            }
         }
     }
 
-    /// What you said, as a message to the agent.
-    private func heard(_ raw: String, kind: String) {
+    /// What you said. With a key or button you meant it; in a conversation the sentence first has to be
+    /// meant for Jarvis (his name, an open session, or the small model says so).
+    private func heard(_ raw: String, info: Heard) {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        if discardNext { discardNext = false; state = .idle; return }
+        if discardNext { discardNext = false; state = handsFree ? .listening : .idle; return }
         if let deliver = dictation {
             dictation = nil
             dictating = false
@@ -350,29 +493,90 @@ final class VoiceBridge: ObservableObject {
         guard let thread = target else { state = handsFree ? .listening : .idle; return }
         ChatRuntime.shared.setActivity(thread, .idle)
         guard !text.isEmpty else { state = handsFree ? .listening : .idle; return }
-        lastActivity = Date()
-        // Notes the thinker made in the pause, and how to answer a listener.
-        ChatRuntime.shared.extra[thread] = Self.spokenStyle + (notes[thread].map { "\n\nBackground notes you prepared (use only if they fit, don't mention them):\n" + $0 } ?? "")
-        notes[thread] = nil
-        ChatRuntime.shared.send(text, in: thread)
-        guard let last = AgentStore.shared.thread(thread)?.messages.last, last.role == .assistant else { state = .idle; return }
-        session = Session(thread: thread, message: last.id)
-        state = .thinking
-        // A bridge phrase, only if the first sentence isn't there yet.
-        let id = last.id
+        let explicit = pttPending || !handsFree
+        pttPending = false
+        if explicit || info.named || Date().timeIntervalSince(wokeAt) < 12 {
+            accept(text, info, thread)
+            return
+        }
+        let inSession = sessionOpen
+        let recent = (AgentStore.shared.thread(thread)?.messages ?? []).filter { !$0.text.isEmpty }.suffix(3).map { ($0.role == .user ? "Person: " : "Assistant: ") + $0.text }
+        let name = AgentStore.shared.jarvis.name
         Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 350_000_000)
-            guard let self, let s = self.session, s.message == id, !s.sentAny, !s.bridged else { return }
-            self.session?.bridged = true
-            self.engine?.bridge(kind)
+            // A very short fragment outside a conversation is almost never for him.
+            let verdict = await DecisionModel.addressed(text, name: name, recent: recent, inSession: inSession)
+            guard let self else { return }
+            let meant = verdict ?? inSession
+            guard meant else {
+                Self.log("ignored (not meant for \(name)): \(text)")
+                if Store.testing { FileHandle.standardError.write(Data("voice ignored: \(text)\n".utf8)) }
+                self.state = self.handsFree ? .listening : .idle
+                return
+            }
+            self.accept(text, info, thread)
         }
     }
 
-    static let spokenStyle = """
-    The user is talking to you and your answer is read aloud. Answer in the language they spoke, in one to three short, natural sentences, \
-    no lists, no markdown, no links read out. When a task takes several steps, say in a few words what you are doing first. \
-    Give the short version and offer more.
-    """
+    /// The sentence is for Jarvis: bridge phrase, then the answer, read aloud as it is written.
+    private func accept(_ text: String, _ info: Heard, _ thread: UUID) {
+        lastActivity = Date()
+        openSession()
+        let now = Date()
+        // Notes the thinker made in the pause, and how to answer a listener.
+        ChatRuntime.shared.extra[thread] = Self.spokenStyle(now) + (notes[thread].map { "\n\nBackground notes you prepared (use only if they fit, don't mention them):\n" + $0 } ?? "")
+        notes[thread] = nil
+        // The instant judgement says whether the model's own knowledge is enough or tools are needed.
+        let decision = info.route.isEmpty ? nil : Decision(needsTools: info.tools, preferCloud: false, decided: true)
+        ChatRuntime.shared.send(text, in: thread, decision: decision, spoken: true)
+        guard let last = AgentStore.shared.thread(thread)?.messages.last, last.role == .assistant else { state = .idle; return }
+        var s = Session(thread: thread, message: last.id)
+        s.kind = info.kind.isEmpty ? "erzaehlung" : info.kind
+        s.route = info.route
+        s.closing = info.kind == "abschied"
+        s.started = now
+        session = s
+        state = .thinking
+        // The bridge phrase: at once when the answer will take a while (tools, thinking); a moment's grace
+        // when the quick model usually has its first sentence ready by then.
+        let id = last.id
+        let quick = (info.route.isEmpty || info.route == "wissen") && firstSentenceAverage > 0 && firstSentenceAverage < 0.6
+        Task { @MainActor [weak self] in
+            if quick { try? await Task.sleep(nanoseconds: 250_000_000) }
+            guard let self, let s = self.session, s.message == id, !s.sentAny, !s.bridged else { return }
+            self.session?.bridged = true
+            self.engine?.bridge(s.kind)
+            Self.log("bridge \(s.kind) after \(Int(Date().timeIntervalSince(s.started) * 1000)) ms")
+        }
+        // Still nothing after a while (a page that loads slowly): a second, calm phrase.
+        Task { @MainActor [weak self] in
+            for wait in [9.0, 12.0] {
+                try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
+                guard let self, let s = self.session, s.message == id, !s.sentAny else { return }
+                self.engine?.bridge("warten")
+            }
+        }
+    }
+
+    /// How a spoken answer is written: for the ear, in the user's language.
+    static func spokenStyle(_ now: Date = Date()) -> String {
+        let clock = now.formatted(.dateTime.weekday(.wide).day().month(.wide).year().hour().minute())
+        return """
+        You are in a spoken conversation: the user talks to you and your answer is read aloud. You have ears and a voice; never say you \
+        can't hear or speak. Answer in the language the user spoke (usually German), in one to three short, natural sentences, the way \
+        you would say it to a person next to you. No markdown, no lists, no headings, no emoji, no links read out (name the site instead). \
+        Write numbers, times and units the way they are said. Start with the answer itself, no filler like "Gladly!" (a short \
+        acknowledgement was already spoken). When a task takes several steps (searching, browsing), say in a few words what you are doing. \
+        Give the short version and offer more. Now: \(clock).
+        """
+    }
+
+    /// Said when an answer failed, so a spoken question never gets silence.
+    static var apology: String {
+        language.hasPrefix("de") ? "Das hat leider nicht geklappt. Schau bitte in den Thread." : "That didn't work. Please look at the thread."
+    }
+
+    /// How quickly the first sentence usually comes (seconds), to decide whether a bridge phrase is needed at once.
+    private var firstSentenceAverage = 0.0
 
     // MARK: reading the answer aloud
 
@@ -386,6 +590,11 @@ final class VoiceBridge: ObservableObject {
             s.consumed = text.count
             for piece in s.chunker.feed(fresh) {
                 if Store.testing { FileHandle.standardError.write(Data("voice say: \(piece)\n".utf8)) }
+                if !s.sentAny {
+                    let took = Date().timeIntervalSince(s.started)
+                    firstSentenceAverage = firstSentenceAverage == 0 ? took : firstSentenceAverage * 0.6 + took * 0.4
+                    Self.log("first sentence after \(Int(took * 1000)) ms (\(s.route.isEmpty ? "?" : s.route))")
+                }
                 engine.say(piece, first: !s.sentAny)
                 s.sentAny = true
             }
@@ -393,7 +602,7 @@ final class VoiceBridge: ObservableObject {
         // The agent started working with nothing said: say so with a phrase.
         if !s.sentAny, !s.bridged, !(message.steps?.isEmpty ?? true) {
             s.bridged = true
-            engine.bridge("suche")
+            engine.bridge(s.route == "browser" ? "browser" : s.route == "brain" ? "brain" : "websuche")
         }
         if !s.finished, !ChatRuntime.shared.thinking.contains(s.thread) {
             s.finished = true
@@ -402,10 +611,16 @@ final class VoiceBridge: ObservableObject {
                 engine.say(piece, first: !s.sentAny); s.sentAny = true
             }
             if !s.sentAny {
-                // Nothing to read (stopped, or an error the thread shows).
-                session = nil
-                state = handsFree ? .listening : .idle
-                return
+                // Stopped by you: silence. Anything else that left nothing to read (an error the thread
+                // shows): a spoken apology, never silence after a spoken question.
+                if let failed = message.failed, failed != "Stopped." {
+                    engine.say(Self.apology, first: true)
+                    s.sentAny = true
+                } else {
+                    session = nil
+                    state = handsFree ? .listening : .idle
+                    return
+                }
             }
         }
         session = s
@@ -454,9 +669,28 @@ final class VoiceBridge: ObservableObject {
         feed(file: file)
     }
 
+    /// Test runs: a WAV file as if the microphone in conversation mode had picked it up: whether it is
+    /// meant for Jarvis is decided (name, open session, the small model), not assumed.
+    func feedConversation(file: URL, open: Bool) {
+        forcedJarvis = true
+        guard let thread = pickThread(), let engine = ensureEngine() else { return }
+        forcedJarvis = false
+        target = thread
+        handsFree = true
+        conversing = true
+        pttPending = false
+        sessionUntil = open ? Date().addingTimeInterval(sessionSeconds) : .distantPast
+        state = .listening
+        engine.transcribe(file: file)
+    }
+
+    /// Test runs: the recording of what the sidecar said (`--record`, XOOL_VOICE_RECORD).
+    func saveOutput(to path: String) { (engine as? SidecarEngine)?.saveOutput(to: path) }
+
     /// Test runs: a WAV file in place of the microphone.
     func feed(file: URL) {
         guard let thread = pickThread(), let engine = ensureEngine() else { return }
+        pttPending = true
         target = thread
         state = .thinking
         ChatRuntime.shared.setActivity(thread, .thinking)

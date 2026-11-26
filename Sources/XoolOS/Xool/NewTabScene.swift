@@ -21,7 +21,7 @@ struct NewTabScene: View {
             // The field is centred and lifted 30 over the window; the page's
             // card is a little shorter than the window: the mark stands a
             // fixed way above the field's top.
-            let centre = CGPoint(x: page.size.width / 2, y: page.size.height / 2 - 10 - 26 - 48 - 23)
+            let centre = CGPoint(x: page.size.width / 2, y: page.size.height / 2 - 10 - 26 - 48 - 30)
             SceneRepresentable(centre: centre, moving: prefs.newTabMotion)
         }
         .allowsHitTesting(false)
@@ -42,7 +42,7 @@ private struct SceneRepresentable: NSViewRepresentable {
 
 /// The scene's layers. Top-left origin, so SwiftUI's numbers go in as they are.
 final class SceneView: NSView {
-    static let markSize = CGSize(width: 56, height: 46)
+    static let markSize = CGSize(width: 60, height: 60)
     private let streakCount = 16
 
     private let root = CALayer()
@@ -51,8 +51,7 @@ final class SceneView: NSView {
     private let wave = CAGradientLayer()
     private let waveMask = CAShapeLayer()
     private let glint = CAGradientLayer()
-    private let mark = CAGradientLayer()
-    private let markMask = CAShapeLayer()
+    private let mark = XoolMarkLayer()
 
     private struct Streak {
         let arm: CALayer
@@ -83,9 +82,6 @@ final class SceneView: NSView {
         glint.type = .radial
         wave.addSublayer(glint)
         wave.mask = waveMask
-        mark.mask = markMask
-        markMask.path = Self.markPath()
-        markMask.fillColor = NSColor.black.cgColor
         for index in 0..<streakCount { addStreak(index) }
     }
 
@@ -145,13 +141,9 @@ final class SceneView: NSView {
         guard size.width > 0, size.height > 0 else { return }
         let dark = isDark
 
-        // The mark: metal, `text` down to `text-muted`.
-        mark.bounds = CGRect(origin: .zero, size: Self.markSize)
+        // The mark: silver triangles over the glass X (XoolMark.swift).
+        mark.configure(side: Self.markSize.width, dark: dark, animated: running)
         mark.position = centre
-        mark.colors = [resolved(Theme.NS.text).cgColor, resolved(Theme.NS.textMuted).cgColor]
-        mark.startPoint = CGPoint(x: 0.5, y: 0)
-        mark.endPoint = CGPoint(x: 0.5, y: 1)
-        markMask.frame = mark.bounds
 
         // Streaks, out from the mark's middle.
         arms.frame = bounds
@@ -251,21 +243,6 @@ final class SceneView: NSView {
         }
         p.addLine(to: CGPoint(x: w, y: h))
         p.addLine(to: CGPoint(x: 0, y: h))
-        p.closeSubpath()
-        return p
-    }
-
-    /// The Xool mark: an arch whose feet flare out, thick in the middle of
-    /// each leg and fine at the foot, traced in a 56 × 46 box.
-    static func markPath() -> CGPath {
-        let p = CGMutablePath()
-        p.move(to: CGPoint(x: 1, y: 45))
-        p.addCurve(to: CGPoint(x: 28, y: 1), control1: CGPoint(x: 13, y: 40), control2: CGPoint(x: 17, y: 4))
-        p.addCurve(to: CGPoint(x: 55, y: 45), control1: CGPoint(x: 39, y: 4), control2: CGPoint(x: 43, y: 40))
-        p.addCurve(to: CGPoint(x: 42, y: 44), control1: CGPoint(x: 51, y: 45), control2: CGPoint(x: 46, y: 45))
-        p.addCurve(to: CGPoint(x: 28, y: 14), control1: CGPoint(x: 38, y: 36), control2: CGPoint(x: 35, y: 14))
-        p.addCurve(to: CGPoint(x: 14, y: 44), control1: CGPoint(x: 21, y: 14), control2: CGPoint(x: 18, y: 36))
-        p.addCurve(to: CGPoint(x: 1, y: 45), control1: CGPoint(x: 10, y: 45), control2: CGPoint(x: 5, y: 45))
         p.closeSubpath()
         return p
     }

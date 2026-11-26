@@ -1,0 +1,286 @@
+import Foundation
+
+/// One run of an agent: who, in which window, which sites were said yes to
+/// for this run, and what the page last showed.
+@MainActor
+final class AgentRun {
+    let threadID: UUID
+    let agent: Agent
+    let session: AgentSession
+    let skills: [Skill]
+    /// Sites allowed for this run only.
+    var sites: Set<String> = []
+    var allSites = false
+    /// Element handle → what it is called on the page, from the last reads.
+    var labels: [String: String] = [:]
+
+    init(threadID: UUID, agent: Agent, session: AgentSession, skills: [Skill]) {
+        self.threadID = threadID
+        self.agent = agent
+        self.session = session
+        self.skills = skills
+    }
+}
+
+struct ToolOutcome {
+    var text: String
+    var failed = false
+    var tab: UUID?
+    var url: String?
+}
+
+/// What an agent can do: search the web, drive tabs of its own, read a skill.
+/// The browser tools are AgentControl's verbs, called in the app (no socket),
+/// so every check there holds here: only http and https, a private tab is
+/// never found, a password, card or one-time-code field never leaves the
+/// page, and Stop ends the call.
+@MainActor
+enum AgentTools {
+    static func specs(skills: [Skill]) -> [ToolSpec] {
+        func schema(_ properties: [String: Any], required: [String]) -> [String: Any] {
+            ["type": "object", "properties": properties, "required": required]
+        }
+        func string(_ detail: String) -> [String: Any] { ["type": "string", "description": detail] }
+        var out = [
+            ToolSpec(name: "web_search", detail: "Search the web. Returns titles, addresses and snippets.",
+                     parameters: schema(["query": string("What to search for"),
+                                         "count": ["type": "integer", "description": "How many results, 1 to 10 (default 6)"]], required: ["query"])),
+            ToolSpec(name: "browser_open", detail: "Open an address in a new tab of your own, which the user sees. Returns the page handle (p1, p2 …).",
+                     parameters: schema(["url": string("An http or https address")], required: ["url"])),
+            ToolSpec(name: "browser_read_page", detail: "Read a page: its text and its links, buttons and fields, each with an element id for click and type.",
+                     parameters: schema(["page": string("Page handle from browser_open, such as p1"),
+                                         "max_chars": ["type": "integer", "description": "How much text, up to 12000 (default 4000)"]], required: ["page"])),
+            ToolSpec(name: "browser_click", detail: "Click an element from the last browser_read_page of that page.",
+                     parameters: schema(["element": string("Element id such as p1.s1.e12")], required: ["element"])),
+            ToolSpec(name: "browser_type", detail: "Type into a text field from the last browser_read_page. Never for passwords, card numbers or one-time codes.",
+                     parameters: schema(["element": string("Element id such as p1.s1.e4"), "text": string("What to type"),
+                                         "submit": ["type": "boolean", "description": "Submit the form afterwards"]], required: ["element", "text"])),
+            ToolSpec(name: "browser_wait_for", detail: "Wait until a page shows some text, has an address containing a string, or is done loading.",
+                     parameters: schema(["page": string("Page handle"), "text": string("Text that should appear"),
+                                         "url": string("Part of the address"), "timeout": ["type": "number", "description": "Seconds, up to 30 (default 10)"]], required: ["page"])),
+            ToolSpec(name: "browser_back", detail: "Go back one page in a tab of your own.",
+                     parameters: schema(["page": string("Page handle")], required: ["page"])),
+        ]
+        if !skills.isEmpty {
+            out.append(ToolSpec(name: "skill", detail: "Read a skill's instructions before following it.",
+                                parameters: schema(["name": ["type": "string", "description": "One of: " + skills.map(\.name).joined(separator: ", ")]], required: ["name"])))
+        }
+        return out
+    }
+
+    // MARK: the protocol
+
+    /// "Opens example.com", "Clicks Next": what the thread shows for a call.
+    static func describe(_ call: ToolCall, run: AgentRun) -> (AgentStep.Kind, String) {
+        let args = call.arguments
+        func short(_ text: String, _ n: Int = 60) -> String { text.count > n ? String(text.prefix(n)) + "…" : text }
+        switch call.name {
+        case "web_search": return (.search, "Searches the web for “\(short(args["query"] as? String ?? ""))”")
+        case "browser_open":
+            let url = args["url"] as? String ?? ""
+            return (.open, "Opens \(AgentRules.address(url).flatMap { AgentDomainTrust.host($0) } ?? short(url))")
+        case "browser_read_page": return (.read, "Reads \(title(of: args["page"] as? String, run: run))")
+        case "browser_click":
+            let element = args["element"] as? String ?? ""
+            return (.click, "Clicks \(run.labels[element].map { "“\(short($0, 40))”" } ?? "an element")")
+        case "browser_type":
+            let element = args["element"] as? String ?? ""
+            return (.type, "Types into \(run.labels[element].map { "“\(short($0, 40))”" } ?? "a field")")
+        case "browser_wait_for": return (.wait, "Waits for \(title(of: args["page"] as? String, run: run))")
+        case "browser_back": return (.back, "Goes back in \(title(of: args["page"] as? String, run: run))")
+        case "skill": return (.skill, "Reads skill “\(args["name"] as? String ?? "")”")
+        default: return (.other, call.name)
+        }
+    }
+
+    private static func title(of page: String?, run: AgentRun) -> String {
+        guard let page, let tab = AgentControl.shared.tab(for: ["page": page], in: run.session) else { return "the page" }
+        let name = tab.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !name.isEmpty { return "“\(name.count > 50 ? String(name.prefix(50)) + "…" : name)”" }
+        return AgentDomainTrust.host(tab.address) ?? "the page"
+    }
+
+    // MARK: running one
+
+    static func execute(_ call: ToolCall, run: AgentRun) async -> ToolOutcome {
+        let args = call.arguments
+        let control = AgentControl.shared
+        func fail(_ text: String) -> ToolOutcome { ToolOutcome(text: text, failed: true) }
+        func refusal(_ out: [String: Any]) -> ToolOutcome? {
+            guard let error = out["error"] as? [String: Any] else { return nil }
+            var text = error["message"] as? String ?? "Failed"
+            if let hint = error["hint"] as? String, !hint.isEmpty { text += ". " + hint }
+            return fail(text)
+        }
+        /// The tab for a handle, with its site said yes to.
+        func allowed(_ request: [String: Any]) async -> ToolOutcome? {
+            guard let tab = control.tab(for: request, in: run.session) else { return nil }
+            return await landing(tab, run: run)
+        }
+
+        switch call.name {
+        case "web_search":
+            let query = (args["query"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !query.isEmpty else { return fail("Give a query") }
+            do {
+                let hits = try await WebSearch.search(query, count: min(max(args["count"] as? Int ?? 6, 1), 10))
+                if hits.isEmpty { return fail("No results. Try other words.") }
+                let text = hits.enumerated().map { "\($0.offset + 1). \($0.element.title)\n   \($0.element.url)\n   \(String($0.element.snippet.prefix(220)))" }.joined(separator: "\n")
+                return ToolOutcome(text: text)
+            } catch {
+                let q = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+                return fail("The search service didn't answer. Try browser_open with https://duckduckgo.com/?q=\(q)")
+            }
+
+        case "browser_open":
+            guard let url = AgentRules.address(args["url"] as? String ?? "") else {
+                return fail("Only http and https addresses can be opened")
+            }
+            guard let host = AgentDomainTrust.host(url) else { return fail("That address has no site") }
+            guard await AgentRuntime.shared.allow(host: host, run: run) else {
+                return fail("The user didn't allow \(host). Try another source.")
+            }
+            let out = await control.call("open", ["url": url.absoluteString, "timeout": 20], in: run.session)
+            if let failed = refusal(out) { return failed }
+            let handle = out["page"] as? String ?? ""
+            let tab = control.tab(for: ["page": handle], in: run.session)
+            if let tab {
+                AgentRuntime.shared.reveal(tab, in: run)
+                if let denied = await landing(tab, run: run) { return denied }
+            }
+            let name = (out["title"] as? String) ?? ""
+            let loading = out["timeout"] as? Bool == true ? " (still loading)" : ""
+            return ToolOutcome(text: "Opened \(handle): \(name) — \(out["url"] as? String ?? "")\(loading). Use browser_read_page with page \(handle).",
+                               tab: tab?.id, url: out["url"] as? String)
+
+        case "browser_read_page":
+            let page = args["page"] as? String ?? ""
+            if let denied = await allowed(["page": page]) { return denied }
+            let longest = min(max(args["max_chars"] as? Int ?? 4000, 500), 12000)
+            let out = await control.call("read", ["page": page, "max_nodes": 150, "max_text": longest], in: run.session)
+            if let failed = refusal(out) { return failed }
+            let tab = control.tab(for: ["page": page], in: run.session)
+            return ToolOutcome(text: format(out, run: run, longest: longest), tab: tab?.id, url: out["url"] as? String)
+
+        case "browser_click":
+            let element = args["element"] as? String ?? ""
+            if let denied = await allowed(["element": element]) { return denied }
+            let out = await control.call("click", ["element": element], in: run.session)
+            if let failed = refusal(out) { return failed }
+            let tab = control.tab(for: ["element": element], in: run.session)
+            var text = "Clicked \(run.labels[element].map { "“\($0)”" } ?? element)."
+            if let tab, let denied = await landing(tab, run: run) { return denied }
+            if out["navigated"] as? Bool == true {
+                text += " The tab went to \(out["title"] as? String ?? "") — \(out["url"] as? String ?? ""). The old element ids are gone: read the page again."
+            } else {
+                text += " The page may have changed: read it again before the next click."
+            }
+            return ToolOutcome(text: text, tab: tab?.id, url: out["url"] as? String)
+
+        case "browser_type":
+            let element = args["element"] as? String ?? ""
+            let text = args["text"] as? String ?? ""
+            if let why = secretLooking(text, label: run.labels[element]) { return fail(why) }
+            if let denied = await allowed(["element": element]) { return denied }
+            var request: [String: Any] = ["element": element, "text": text]
+            if args["submit"] as? Bool == true { request["submit"] = true }
+            let out = await control.call("type", request, in: run.session)
+            if let failed = refusal(out) { return failed }
+            let tab = control.tab(for: ["element": element], in: run.session)
+            if request["submit"] != nil, let tab, let denied = await landing(tab, run: run) { return denied }
+            return ToolOutcome(text: "Typed into \(run.labels[element].map { "“\($0)”" } ?? element)\(request["submit"] != nil ? " and submitted. Read the page again." : ".")",
+                               tab: tab?.id, url: tab?.address?.absoluteString)
+
+        case "browser_wait_for":
+            let page = args["page"] as? String ?? ""
+            if let denied = await allowed(["page": page]) { return denied }
+            var request: [String: Any] = ["page": page, "timeout": min(max(args["timeout"] as? Double ?? 10, 1), 30)]
+            for key in ["text", "url"] { if let v = args[key] as? String, !v.isEmpty { request[key] = v } }
+            let out = await control.call("wait_for", request, in: run.session)
+            if let failed = refusal(out) { return failed }
+            let tab = control.tab(for: ["page": page], in: run.session)
+            return ToolOutcome(text: "Done: \(out["title"] as? String ?? "") — \(out["url"] as? String ?? "")", tab: tab?.id, url: out["url"] as? String)
+
+        case "browser_back":
+            let page = args["page"] as? String ?? ""
+            if let denied = await allowed(["page": page]) { return denied }
+            let out = await control.call("back", ["page": page], in: run.session)
+            if let failed = refusal(out) { return failed }
+            let tab = control.tab(for: ["page": page], in: run.session)
+            if let tab, let denied = await landing(tab, run: run) { return denied }
+            return ToolOutcome(text: "Back at \(out["title"] as? String ?? "") — \(out["url"] as? String ?? ""). Read the page again.",
+                               tab: tab?.id, url: out["url"] as? String)
+
+        case "skill":
+            guard let skill = run.skills.first(where: { $0.name == Skill.slug(args["name"] as? String ?? "") }) else {
+                return fail("No such skill. Available: " + run.skills.map(\.name).joined(separator: ", "))
+            }
+            return ToolOutcome(text: String(skill.body.prefix(8000)))
+
+        default:
+            return fail("No tool called \(call.name)")
+        }
+    }
+
+    /// A tab's site must have been said yes to — also after a link or a
+    /// redirect took it somewhere else — before anything of it is handed on.
+    private static func landing(_ tab: Tab, run: AgentRun) async -> ToolOutcome? {
+        guard let host = AgentDomainTrust.host(tab.address), tab.address?.scheme != "about" else { return nil }
+        if await AgentRuntime.shared.allow(host: host, run: run) { return nil }
+        // Not left open where it must not be.
+        if let handle = AgentControl.shared.handle(of: tab, in: run.session) {
+            _ = await AgentControl.shared.call("close", ["page": handle], in: run.session)
+        }
+        return ToolOutcome(text: "The user didn't allow \(host). The tab was closed. Try another source.", failed: true)
+    }
+
+    /// What the page showed, in words a model can use: text, then the things
+    /// it can click or fill, each with its id.
+    static func format(_ out: [String: Any], run: AgentRun, longest: Int) -> String {
+        var lines = ["Page \(out["page"] as? String ?? ""): \(out["title"] as? String ?? "") — \(out["url"] as? String ?? "")"]
+        if let text = out["text"] as? String, !text.isEmpty {
+            let squeezed = text.replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
+            lines.append("Text:\n" + squeezed + (out["textTruncated"] as? Bool == true ? "\n[… text cut]" : ""))
+        }
+        var elements: [String] = []
+        for node in out["nodes"] as? [[String: Any]] ?? [] {
+            guard let id = node["element"] as? String, let role = node["role"] as? String, role != "heading", role != "iframe" else { continue }
+            let name = ((node["name"] as? String) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            if name.isEmpty, node["value"] == nil, node["href"] == nil { continue }
+            run.labels[id] = name.isEmpty ? role : String(name.prefix(80))
+            var line = "[\(id)] \(role) “\(String(name.prefix(80)))”"
+            if let href = node["href"] as? String { line += " → \(href)" }
+            if node["redacted"] as? Bool == true { line += " (secret field: not for you)" }
+            else if let value = node["value"] as? String, !value.isEmpty { line += " value=“\(String(value.prefix(60)))”" }
+            elements.append(line)
+            if elements.count >= 70 { break }
+        }
+        if !elements.isEmpty { lines.append("Elements:\n" + elements.joined(separator: "\n")) }
+        return lines.joined(separator: "\n\n")
+    }
+
+    /// Text a model must not type: a card number, or anything into a field
+    /// that asks for a password, a code or a card. (The page's own scripts
+    /// also refuse secret fields; this is the second lock.)
+    static func secretLooking(_ text: String, label: String?) -> String? {
+        let digits = text.filter(\.isNumber)
+        if (13...19).contains(digits.count), digits.count >= text.filter({ !$0.isWhitespace && $0 != "-" }).count - 1, luhn(digits) {
+            return "That looks like a card number. Cards are never typed by an agent: ask the user."
+        }
+        if let label, label.range(of: #"pass|pwd|kennwort|passwort|cvv|cvc|card|karte|one-time|otp|verification|2fa|security code|sicherheitscode|iban"#,
+                                  options: [.regularExpression, .caseInsensitive]) != nil {
+            return "That field is for a password, a card or a code. Agents never fill those: ask the user to."
+        }
+        return nil
+    }
+
+    static func luhn(_ digits: String) -> Bool {
+        var sum = 0
+        for (index, char) in digits.reversed().enumerated() {
+            guard var n = char.wholeNumberValue else { return false }
+            if index % 2 == 1 { n *= 2; if n > 9 { n -= 9 } }
+            sum += n
+        }
+        return sum % 10 == 0
+    }
+}

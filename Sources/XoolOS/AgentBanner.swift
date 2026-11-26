@@ -56,7 +56,7 @@ struct AgentStatus: View {
     @ObservedObject private var agents = AgentControl.shared
 
     var body: some View {
-        if let session = agents.session, session.browser === browser {
+        ForEach(agents.sessions.filter { $0.browser === browser }) { session in
             AgentStatusFace(session: session, style: style, prefs: browser.prefs)
         }
     }
@@ -77,7 +77,7 @@ private struct AgentStatusFace: View {
         if session.consent.state == .allowed {
             switch style {
             case .icon:
-                Button { AgentControl.shared.stopSession() } label: {
+                Button { AgentControl.shared.stop(session) } label: {
                     Image(systemName: "stop.circle")
                         .font(.system(size: 13))
                         .foregroundStyle(Palette.muted)
@@ -96,11 +96,11 @@ private struct AgentStatusFace: View {
     /// Working: the accent colour; quiet, muted.
     private var mark: some View {
         Image(systemName: "cursorarrow.rays")
-            .foregroundStyle(session.busy ? Color.accentColor : Palette.muted)
+            .foregroundStyle(session.busy ? (session.ownerColor?.solid ?? Color.accentColor) : Palette.muted)
     }
 
     private var stop: some View {
-        CardButton(title: "Stop", act: { AgentControl.shared.stopSession() }) {
+        CardButton(title: "Stop", act: { AgentControl.shared.stop(session) }) {
             ClickSpot { AgentControl.shared.stopButton = $0 }
         }
         .shortcutHelp("Disconnect it. Its tabs stay where they are.", "file.stopAgent")
@@ -194,7 +194,18 @@ struct AgentMark: View {
     @ObservedObject var tab: Tab
 
     var body: some View {
-        if tab.agentWorking {
+        if let color = tab.ownerColor, tab.ownerAgent != nil {
+            // One of Xool's agents: a ring in its colour, filled while it works.
+            Circle()
+                .strokeBorder(color.solid, lineWidth: 1.6)
+                .background(Circle().fill(tab.agentWorking ? color.solid : Color.clear))
+                .frame(width: 8, height: 8)
+                .padding(1.5)
+                .background(Circle().fill(Palette.ground))
+                .offset(x: 3, y: 3)
+                .allowsHitTesting(false)
+                .help("An agent of yours opened this tab")
+        } else if tab.agentWorking {
             Circle()
                 .fill(Color.accentColor)
                 .frame(width: 6, height: 6)
@@ -222,11 +233,11 @@ struct StopAgentMenuItem: View {
     @ObservedObject private var agents = AgentControl.shared
 
     var body: some View {
-        Button(agents.shownIn == nil ? "Stop Agent" : "Stop \(agents.session?.client ?? "Agent")") {
-            AgentControl.shared.stopSession()
+        Button(agents.sessions.isEmpty ? "Stop Agent" : "Stop \(agents.sessions.last?.client ?? "Agent")") {
+            if let last = agents.sessions.last { AgentControl.shared.stop(last) } else { AgentControl.shared.stopSession() }
         }
         .shortcut("file.stopAgent")
-        .disabled(agents.shownIn == nil)
+        .disabled(agents.sessions.isEmpty)
     }
 }
 

@@ -463,3 +463,61 @@ final class AgentTrust: ObservableObject {
         }
     }
 }
+
+
+// MARK: - Xool's own agents: which sites each may use
+
+/// The sites each of Xool's agents may work on. Asked once per site and
+/// agent, when the agent first goes there: "Allow", "Only this run" (not kept)
+/// or "Deny". What is kept is the agent's id and the host, in a file beside
+/// its threads — no secret, so no keychain.
+@MainActor
+final class AgentDomainTrust: ObservableObject {
+    static let shared = AgentDomainTrust()
+
+    @Published private(set) var grants: [String: [String]] = [:]
+    private let file: URL
+
+    init(file: URL = Store.folder.appendingPathComponent("agents", isDirectory: true).appendingPathComponent("domains.json")) {
+        self.file = file
+        try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        if let data = try? Data(contentsOf: file), let read = try? JSONDecoder().decode([String: [String]].self, from: data) {
+            grants = read
+        }
+    }
+
+    /// A site as it is kept: lower case, without "www.".
+    nonisolated static func host(_ url: URL?) -> String? {
+        guard var host = url?.host?.lowercased(), !host.isEmpty else { return nil }
+        if host.hasPrefix("www.") { host.removeFirst(4) }
+        return host
+    }
+
+    /// Allowed for the host itself and the sites under it.
+    func allowed(_ agent: UUID, host: String) -> Bool {
+        (grants[agent.uuidString] ?? []).contains { host == $0 || host.hasSuffix("." + $0) }
+    }
+
+    func grant(_ agent: UUID, host: String) {
+        var list = grants[agent.uuidString] ?? []
+        guard !list.contains(host) else { return }
+        list.append(host)
+        grants[agent.uuidString] = list
+        save()
+    }
+
+    func revoke(_ agent: UUID, host: String) {
+        grants[agent.uuidString]?.removeAll { $0 == host }
+        save()
+    }
+
+    func forget(agent: UUID) {
+        grants[agent.uuidString] = nil
+        save()
+    }
+
+    private func save() {
+        guard let data = try? JSONEncoder().encode(grants) else { return }
+        try? data.write(to: file, options: .atomic)
+    }
+}

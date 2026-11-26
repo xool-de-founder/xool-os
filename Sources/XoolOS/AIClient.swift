@@ -49,7 +49,7 @@ final class AIClient: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
     /// Kept between asks, and made again when the proxy changes: a session
     /// holds the configuration it was born with, so a lazy one would go on
     /// reaching the provider directly for the rest of the run (Proxy.swift).
-    private var session: URLSession {
+    var session: URLSession {
         ProxyNetwork.kept("ai") {
             let configuration = URLSessionConfiguration.ephemeral
             configuration.urlCache = nil
@@ -308,7 +308,7 @@ final class AIClient: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
         return text
     }
 
-    private static func reason(_ error: URLError, _ provider: AIProvider) -> String {
+    static func reason(_ error: URLError, _ provider: AIProvider) -> String {
         switch error.code {
         case .cannotConnectToHost where provider.isLocal: return "\(provider.name) isn't running on this Mac."
         case .notConnectedToInternet: return "This Mac is offline."

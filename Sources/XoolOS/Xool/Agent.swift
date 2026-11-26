@@ -19,12 +19,30 @@ struct Agent: Identifiable, Codable, Equatable {
     /// Nil: follows the model chosen in the bar.
     var model: ModelChoice?
     var pinned = true
+    /// Names of the skills it keeps (SkillStore). Nil in files written before.
+    var skills: [String]?
     var created = Date()
     var lastActive = Date()
 
     var accent: Color { color.solid }
 
     static let starter: [Agent] = []
+}
+
+/// One thing an agent did while answering: "Opens example.com", "Clicks
+/// Next". A step in a tab jumps to that tab when clicked.
+struct AgentStep: Identifiable, Codable, Equatable {
+    enum Kind: String, Codable { case search, open, read, click, type, wait, back, skill, other }
+    enum State: String, Codable { case running, done, failed }
+    var id = UUID()
+    var kind: Kind
+    var text: String
+    var state: State = .running
+    /// The tab it happened in, and its address for when that tab is gone.
+    var tab: UUID?
+    var url: String?
+    /// Why it failed, or what came of it.
+    var note: String?
 }
 
 struct ChatMessage: Identifiable, Codable, Equatable {
@@ -36,6 +54,8 @@ struct ChatMessage: Identifiable, Codable, Equatable {
     /// The model that answered, for an assistant message.
     var model: String?
     var date = Date()
+    /// What the agent did on the way to this answer.
+    var steps: [AgentStep]?
 }
 
 struct ChatThread: Identifiable, Codable, Equatable {

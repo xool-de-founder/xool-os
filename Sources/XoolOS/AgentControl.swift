@@ -421,6 +421,15 @@ final class AgentSession: ObservableObject, Identifiable {
     fileprivate var hello: (([String: Any]) -> Void)?
     fileprivate var pace = AgentPace()
 
+    /// One of Xool's own agents, running inside the app (AgentRuntime): no
+    /// socket, no question — its calls go straight to the verbs below.
+    fileprivate(set) var owner: UUID?
+    fileprivate(set) var ownerColor: AgentColor?
+    /// What Stop does for it: ends its run.
+    fileprivate(set) var onStop: (() -> Void)?
+    /// Calls waiting for a page, answered "stopped" when the run ends.
+    fileprivate var inflight: [UUID: ([String: Any]) -> Void] = [:]
+
     /// p1 → the tab it names. Its own tabs, and yours once listed.
     fileprivate var pages: [String: Tab.ID] = [:]
     /// The tabs it opened, and the ones those opened.
@@ -474,6 +483,8 @@ final class AgentControl: ObservableObject {
 
     /// The one connection there is, asking or allowed.
     @Published private(set) var session: AgentSession?
+    /// Xool's own agents at work, apart from the one program on the socket.
+    @Published fileprivate(set) var inner: [AgentSession] = []
     private(set) var running = false
     private var listener: Int32 = -1
     private var accepting: DispatchSourceRead?
@@ -772,6 +783,7 @@ final class AgentControl: ObservableObject {
 
     /// Stop: the column's foot, the strip, File › Stop Agent.
     func stopSession() {
+        for run in inner { run.onStop?() }
         if let session { end(session, "stopped from the window") }
     }
 
@@ -813,7 +825,7 @@ final class AgentControl: ObservableObject {
     /// Asked again before every step that touches a page, so nothing it
     /// asked for runs after Stop.
     private func live(_ session: AgentSession) -> Bool {
-        self.session === session && session.consent.state == .allowed
+        (self.session === session || inner.contains { $0 === session }) && session.consent.state == .allowed
     }
 
     // MARK: answering the question
@@ -1114,6 +1126,8 @@ final class AgentControl: ObservableObject {
                 guard let url = AgentRules.address(request["url"] as? String ?? "") else { throw Self.badAddress }
                 let tab = browser.benchOpen(url, agent: true)
                 session.own.insert(tab.id)
+                tab.ownerAgent = session.owner
+                tab.ownerColor = session.ownerColor
                 work(on: tab, session)
                 PageRoom.shared.house(tab)
                 settle(tab, session, timeout: request["timeout"] as? Double ?? 20, answer)
@@ -1532,5 +1546,91 @@ final class AgentControl: ObservableObject {
         }
         NSGraphicsContext.restoreGraphicsState()
         return rep.representation(using: .png, properties: [:])
+    }
+}
+
+
+// MARK: - Xool's own agents
+
+/// The browser tools of Xool's agents (AgentRuntime): the verbs above, called
+/// in the app rather than over the socket. Same checks, same pages scripts,
+/// same refusals — a private tab is never found, a password, card or
+/// one-time-code field never leaves the page, only http and https go
+/// anywhere — and Stop is the same Stop.
+extension AgentControl {
+    /// The runs in progress, for the column's card and the strip's pill.
+    var sessions: [AgentSession] { (session.map { [$0] } ?? []) + inner }
+
+    /// A session for one run of an agent, in the window in front. Nil when
+    /// no window is open.
+    func begin(agent: Agent, browser: Browser? = nil, stop: @escaping () -> Void) -> AgentSession? {
+        guard let browser = browser ?? Browsers.all.first(where: { $0.window?.isKeyWindow == true }) ?? Browsers.primary else { return nil }
+        let made = AgentSession(fd: -1, program: "Xool")
+        made.client = agent.name
+        made.owner = agent.id
+        made.ownerColor = agent.color
+        made.browser = browser
+        made.onStop = stop
+        made.consent.hello()
+        made.consent.answer(allow: true, seesTabs: false)
+        made.busy = true
+        inner.append(made)
+        return made
+    }
+
+    /// The run is over, by itself or by Stop: nothing more it asked runs, and
+    /// its tabs stay where they are, no longer marked as working.
+    func finish(_ session: AgentSession) {
+        guard inner.contains(where: { $0 === session }) else { return }
+        session.consent.end()
+        for answer in session.inflight.values { answer(AgentRefusal(code: "stopped", message: "Stopped in Xool OS").said) }
+        session.inflight = [:]
+        work(on: nil, session)
+        for id in session.own { session.browser?.tabs.first { $0.id == id }?.agentWorking = false }
+        inner.removeAll { $0 === session }
+    }
+
+    /// Stop on the card, the pill or the icon: for a run, ends it.
+    func stop(_ session: AgentSession) {
+        if let stop = session.onStop { stop() } else if self.session === session { end(session, "stopped from the window") }
+    }
+
+    /// One verb, answered when the page has answered, the run is stopped, or
+    /// the time is up.
+    func call(_ verb: String, _ request: [String: Any], in session: AgentSession) async -> [String: Any] {
+        guard live(session) else { return AgentRefusal(code: "stopped", message: "Stopped in Xool OS").said }
+        session.stirred = Date()
+        let patience = min(60, (request["timeout"] as? Double ?? 20) + 15)
+        return await withCheckedContinuation { continuation in
+            let key = UUID()
+            var answered = false
+            let answer: ([String: Any]) -> Void = { [weak session] out in
+                guard !answered else { return }
+                answered = true
+                session?.inflight[key] = nil
+                continuation.resume(returning: out)
+            }
+            session.inflight[key] = answer
+            DispatchQueue.main.asyncAfter(deadline: .now() + patience) {
+                answer(AgentRefusal(code: "no_answer", message: "No answer within \(Int(patience)) s").said)
+            }
+            run(verb, request, in: session, answer)
+        }
+    }
+
+    /// The tab a request's page or element handle names, if it is still there.
+    func tab(for request: [String: Any], in session: AgentSession) -> Tab? {
+        let handle = (request["page"] as? String) ?? (request["element"] as? String).map { String($0.split(separator: ".").first ?? "") } ?? ""
+        return session.pages[handle].flatMap { id in session.browser?.tabs.first { $0.id == id } }
+    }
+
+    /// The tabs this run opened that are still open.
+    func tabs(of session: AgentSession) -> [Tab] {
+        session.browser?.tabs.filter { session.own.contains($0.id) } ?? []
+    }
+
+    /// The handle a run gave a tab, if it has one.
+    func handle(of tab: Tab, in session: AgentSession) -> String? {
+        session.pages.first { $0.value == tab.id }?.key
     }
 }

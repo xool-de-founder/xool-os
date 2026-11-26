@@ -1895,9 +1895,12 @@ struct SideBar: View {
     /// Between what plays in another tab and the foot's doors.
     private static let playerGap: CGFloat = 4
     /// The agent's card at the column's foot (AgentStatus).
-    private var agentCard: CGFloat { AgentStatus.cardHeight(row: rowHeight, auto: agents.session?.auto == true) }
+    private var agentCard: CGFloat {
+        let here = agents.sessions.filter { $0.browser === browser }
+        return here.reduce(0) { $0 + AgentStatus.cardHeight(row: rowHeight, auto: $1.auto) + SideBar.playerGap } - (here.isEmpty ? 0 : SideBar.playerGap)
+    }
     /// An agent's pill is showing in this window (AgentControl).
-    private var agentHere: Bool { agents.shownIn == ObjectIdentifier(browser) }
+    private var agentHere: Bool { agents.sessions.contains { $0.browser === browser } }
 
     @ViewBuilder
     private var newTab: some View {

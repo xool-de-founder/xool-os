@@ -693,6 +693,10 @@ final class Tab: ObservableObject, Identifiable {
     /// A coding agent is working in this tab now (AgentControl): a dot on
     /// its icon's corner, gone once it moves on, goes idle or disconnects.
     @Published var agentWorking = false
+    /// One of Xool's agents opened this tab (AgentRuntime): its ring is in
+    /// the agent's colour, and the column's Agents section lists it.
+    @Published var ownerAgent: UUID?
+    var ownerColor: AgentColor?
 
     /// Not `web`: a tab asleep is muted without being woken, and hears of
     /// it when its page is built again.

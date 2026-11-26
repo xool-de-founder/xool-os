@@ -284,23 +284,17 @@ struct ThreadView: View {
 
     // MARK: voice
 
-    /// Click to talk, click again when you are done (holding `fn` does the
-    /// same). Right-click: hands-free, where you just talk and can interrupt.
+    /// Dictation into the field: click, speak, click again (Esc cancels). The
+    /// same waveform as the address field. Talking to the agent itself is
+    /// still holding `fn`; right-click: hands-free, where you just talk.
     private func micButton(_ thread: ChatThread, _ agent: Agent) -> some View {
-        let talking = voice.state == .listening && voice.target == thread.id
-        let symbol = talking ? "mic.fill" : voice.handsFree && voice.target == thread.id ? "waveform.circle" : "mic"
-        return XoolButton(action: { voice.pressed(!(voice.state == .listening)) }) {
-            Image(systemName: symbol)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(talking || voice.handsFree ? agent.color.solid : Theme.textMuted)
-                .frame(width: Theme.target, height: Theme.target)
-        }
+        DictationButton(deliver: { text in
+            draft = draft.isEmpty ? text : draft + (draft.hasSuffix(" ") ? "" : " ") + text
+            typing = true
+        })
         .contextMenu {
             Button(voice.handsFree ? "Stop hands-free" : "Talk hands-free") { voice.toggleHandsFree() }
         }
-        .accessibilityLabel(talking ? "Stop listening" : "Talk to \(agent.name)")
-        .accessibilityHint("Or hold \(voice.key == "fn" ? "the fn key" : "Option Space")")
-        .help(talking ? "Done talking" : "Talk to \(agent.name). Or hold \(voice.key == "fn" ? "fn" : "⌥Space"). Right-click for hands-free")
     }
 
     /// What the voice needs the user to know: loading, no microphone, no setup.

@@ -1213,6 +1213,10 @@ final class Preferences: ObservableObject {
 
     /// With the tabs folded away (⌘S), a line along the page's top while it
     /// loads, as Arc's (idea 269). On unless turned off.
+    /// Xool: the moving scene on a new tab (stars, wave); off, it stands still.
+    @Published var newTabMotion: Bool {
+        didSet { store.set(newTabMotion, forKey: "xool.newTabMotion") }
+    }
     @Published var showsLoadingLine: Bool {
         didSet { store.set(showsLoadingLine, forKey: "fold.loadingLine") }
     }
@@ -1394,6 +1398,7 @@ final class Preferences: ObservableObject {
         sleepPace = SleepPace.chosen
         // On for everyone who never touched it (Drice, 25 Nov 2026).
         showsLoadingLine = store.object(forKey: "fold.loadingLine") as? Bool ?? true
+        newTabMotion = store.object(forKey: "xool.newTabMotion") as? Bool ?? true
         lazyTabs = store.bool(forKey: "tabs.lazy")
         newTabAfterLast = store.bool(forKey: "tabs.newAfterLast")
         keepWindowAfterLast = store.bool(forKey: "tabs.keepWindow")

@@ -20,6 +20,9 @@ private struct BlankWall: View {
         if prefs.homeTheme != .off {
             HomeBackground(theme: prefs.homeTheme, tuning: prefs.homeTuning, image: prefs.homeThemeImage,
                            shuffle: prefs.homeShuffle)
+        } else {
+            // Xool's own: the mark, streaks and a flat wave (NewTabScene).
+            NewTabScene()
         }
     }
 }

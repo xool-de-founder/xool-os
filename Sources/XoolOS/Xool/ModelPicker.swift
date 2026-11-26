@@ -5,6 +5,9 @@ import SwiftUI
 struct ModelChip: View {
     @ObservedObject var models: ModelStore
     @ObservedObject var ui: XoolUI
+    /// In the address field: small and `text-muted`, the name without its
+    /// "· local" (the dot says local or cloud).
+    var compact = false
 
     var body: some View {
         XoolButton(action: { ui.showModels.toggle() }) {
@@ -12,9 +15,9 @@ struct ModelChip: View {
                 Image(systemName: models.current?.isLocal == false ? "circle" : "circle.fill")
                     .font(.system(size: 7, weight: .bold))
                     .foregroundStyle(Theme.textMuted)
-                Text(chipTitle)
+                Text(compact ? (models.current?.label ?? "No model") : chipTitle)
                     .font(Theme.small)
-                    .foregroundStyle(Theme.text)
+                    .foregroundStyle(compact ? Theme.textMuted : Theme.text)
                     .lineLimit(1)
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: 8, weight: .semibold))
@@ -23,7 +26,7 @@ struct ModelChip: View {
             .padding(.horizontal, Theme.Space.s)
         }
         .accessibilityLabel("Model: \(chipTitle)")
-        .popover(isPresented: $ui.showModels, arrowEdge: .top) {
+        .popover(isPresented: $ui.showModels, arrowEdge: compact ? .bottom : .top) {
             ModelPicker(models: models, ui: ui)
         }
     }

@@ -50,7 +50,7 @@ struct HomeGrid: View {
                 }
                 .frame(width: width)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .padding(.top, page.size.height / 2 - 30 + 25 + 10)
+                .padding(.top, page.size.height / 2 - 30 + 26 + 10)
             }
         }
     }

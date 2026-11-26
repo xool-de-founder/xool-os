@@ -141,12 +141,67 @@ final class VoiceBridge: ObservableObject {
                              settings: URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"))
     }
 
+    // MARK: dictation
+
+    /// Speech into a text field instead of a thread: the address field, the
+    /// thread's own field. Click to start, click to finish (the words go to
+    /// `deliver`), Esc to throw it away.
+    @Published private(set) var dictating = false
+    private var dictation: ((String) -> Void)?
+    private var discardNext = false
+    private var escape: Any?
+
+    func toggleDictation(_ deliver: @escaping (String) -> Void) {
+        if dictating { finishDictation(); return }
+        guard !holding, !handsFree else { return }
+        notice = nil
+        interrupt()
+        guard let engine = ensureEngine() else { return }
+        discardNext = false
+        dictation = deliver
+        withMicrophone { [weak self] in
+            guard let self, self.dictation != nil else { return }
+            self.dictating = true
+            self.state = .listening
+            engine.ptt(down: true)
+            self.escape = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard event.keyCode == 53, self?.dictating == true else { return event }
+                MainActor.assumeIsolated { self?.cancelDictation() }
+                return nil
+            }
+        }
+    }
+
+    private func finishDictation() {
+        guard dictating else { return }
+        dictating = false
+        stopEscapeWatch()
+        guard state == .listening, let engine else { dictation = nil; state = .idle; return }
+        state = .thinking
+        engine.ptt(down: false)
+    }
+
+    func cancelDictation() {
+        guard dictating || dictation != nil else { return }
+        discardNext = state == .listening || state == .thinking
+        dictation = nil
+        dictating = false
+        stopEscapeWatch()
+        if state == .listening || state == .thinking { state = .idle }
+        engine?.ptt(down: false)
+    }
+
+    private func stopEscapeWatch() {
+        if let escape { NSEvent.removeMonitor(escape) }
+        escape = nil
+    }
+
     // MARK: push to talk
 
     /// The key went down or up.
     func pressed(_ down: Bool) {
         if down {
-            guard !holding else { return }
+            guard !holding, !dictating else { return }
             holding = true
             notice = nil
             interrupt()
@@ -242,6 +297,14 @@ final class VoiceBridge: ObservableObject {
     /// What you said, as a message to the agent.
     private func heard(_ raw: String, kind: String) {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if discardNext { discardNext = false; state = .idle; return }
+        if let deliver = dictation {
+            dictation = nil
+            dictating = false
+            state = .idle
+            if !text.isEmpty { deliver(text) }
+            return
+        }
         guard let thread = target else { state = handsFree ? .listening : .idle; return }
         ChatRuntime.shared.setActivity(thread, .idle)
         guard !text.isEmpty else { state = handsFree ? .listening : .idle; return }

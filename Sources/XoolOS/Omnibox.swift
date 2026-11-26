@@ -28,7 +28,7 @@ struct Omnibox: View {
     /// The field's own height — the 22 of text and 14 of air above and below it
     /// that `field` lays out — so the list can sit below it without being
     /// stacked with it.
-    private static let fieldHeight: CGFloat = 22 + 14 * 2
+    private static let fieldHeight: CGFloat = 52
 
     @XState private var shake: CGFloat = 0
     @XState private var refused = false
@@ -139,34 +139,28 @@ struct Omnibox: View {
                     .transition(.scale(scale: 0.9, anchor: .leading).combined(with: .opacity))
             }
             AddressField(browser: browser, tab: tab)
+            // Xool: the model that answers, and the voice (docs/PLAN.md 6, D).
+            ModelChip(models: ModelStore.shared, ui: XoolUI.shared, compact: true)
+            DictationButton(deliver: { browser.typed = $0 }, size: 32)
         }
             .animation(Motion.quick, value: browser.siteChip)
-            .frame(height: 22)
-            .padding(.horizontal, 22)
-            .padding(.vertical, 14)
+            .frame(height: 52)
+            .padding(.leading, 18)
+            .padding(.trailing, 10)
             .background {
-                ZStack {
-                    // A slow, almost invisible breath under the field. It is
-                    // the only thing on an empty tab, and a thing that never
-                    // moves at all reads as a picture of an app rather than
-                    // an app. Not over a theme (Settings › Themes): the wall
-                    // moves the eye already, and the ink's haze lay over a
-                    // picture as a white or dark smudge (idea 952).
-                    UnlessThemed(over: over) { Breath() }
-
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Palette.ground)
-                }
+                // 52 pt, radius 12, the surface and a hairline: no shadow, no
+                // breath, in the dark nothing but the line.
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Theme.surface)
             }
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .strokeBorder(
-                        refused ? Color.red.opacity(0.35) : Palette.hairline,
+                        refused ? Color.red.opacity(0.35) : Theme.line,
                         lineWidth: 1
                     )
                     .allowsHitTesting(false)
             )
-            .shadow(color: .black.opacity(0.06), radius: 24, y: 8)
             .modifier(Shake(travel: shake))
             .onAppear {
                 shake = 0
@@ -570,9 +564,9 @@ struct AddressField: NSViewRepresentable {
     /// In the address bar there is no doubt where: it is the tab's own.
     private static func placeholderWords(for browser: Browser) -> String {
         if let site = browser.siteChip { return "Search \(site.name)" }
-        if browser.editingInline { return "Enter a web address" }
+        if browser.editingInline { return "Enter an address or ask an agent" }
         switch browser.fieldMode {
-        case .blank: return "Enter a web address"
+        case .blank: return "Enter an address or ask an agent"
         case .newTab: return "New tab: enter a web address"
         case .thisTab: return "This tab: enter a web address"
         case .switcher: return "Switch to an open tab"

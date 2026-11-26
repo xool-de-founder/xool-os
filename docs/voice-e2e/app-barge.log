@@ -1,0 +1,37 @@
+2026-11-26T21:53:06Z event ready("de_DE-thorsten-high")
+2026-11-26T21:53:06Z event loading("ears")
+2026-11-26T21:53:06Z sidecar bridges ["cached": 323, "count": 323, "ev": bridges]
+2026-11-26T21:53:08Z event warm
+2026-11-26T21:53:14Z event speechStart
+2026-11-26T21:53:21Z event transcript("Jarvis, erzähl mir bitte ausführlich etwas über die Geschichte von Paris, so in fünf oder sechs Sätzen.", XoolOS.Heard(kind: "befehl", route: "wissen", tools: false, named: true, ms: 238))
+2026-11-26T21:53:21Z bridge befehl after 15 ms
+2026-11-26T21:53:21Z sidecar sound ["ev": sound, "ms": 16, "kind": bridge]
+2026-11-26T21:53:21Z event bridge("Dann los.")
+2026-11-26T21:53:21Z event speaking(true)
+2026-11-26T21:53:22Z say: Paris wurde zur gallo-römischen Stadt Lutetia gegründet und entwickelte sich über
+2026-11-26T21:53:22Z first sentence after 704 ms (wissen)
+2026-11-26T21:53:22Z say: Jahrhunderte zu einem bedeutenden Zentrum der Macht und Kultur.
+2026-11-26T21:53:22Z sidecar sound ["ms": 1219, "kind": say, "ev": sound]
+2026-11-26T21:53:23Z say: Im Mittelalter wuchs die Stadt stetig an und wurde zur Hauptstadt des Königreichs Frankreich.
+2026-11-26T21:53:23Z say: Im 18. Jahrhundert erlebte Paris eine Blütezeit als Zentrum der Aufklärung und der Revolution.
+2026-11-26T21:53:23Z sidecar barge_in ["ms_stop": 0, "ev": barge_in, "ms_total": 400]
+2026-11-26T21:53:23Z event bargeIn
+2026-11-26T21:53:23Z event speaking(false)
+2026-11-26T21:53:23Z event idle
+2026-11-26T21:53:23Z event speechStart
+2026-11-26T21:53:23Z event speaking(true)
+2026-11-26T21:53:23Z event speaking(false)
+2026-11-26T21:53:23Z event idle
+2026-11-26T21:53:24Z event speechStart
+2026-11-26T21:53:27Z event transcript("Warte mal kurz, ich habe eine andere Frage.", XoolOS.Heard(kind: "erzaehlung", route: "wissen", tools: false, named: false, ms: 345))
+2026-11-26T21:53:28Z addressee: "Warte mal kurz, ich habe eine andere Frage." → for Jarvis in 734 ms via gemma4:12b
+2026-11-26T21:53:28Z bridge erzaehlung after 11 ms
+2026-11-26T21:53:28Z sidecar sound ["kind": bridge, "ev": sound, "ms": 808]
+2026-11-26T21:53:28Z event bridge("Hm, ja.")
+2026-11-26T21:53:28Z event speaking(true)
+2026-11-26T21:53:28Z say: Kein Problem, ich höre dir zu.
+2026-11-26T21:53:28Z first sentence after 532 ms (wissen)
+2026-11-26T21:53:28Z sidecar sound ["kind": say, "ev": sound, "ms": 1615]
+2026-11-26T21:53:32Z event speaking(false)
+2026-11-26T21:53:32Z event idle
+2026-11-26T21:53:42Z sidecar saved ["path": /private/tmp/claude-501/app/barge-out.wav, "ev": saved, "seconds": 11.14]

@@ -1,0 +1,23 @@
+2026-11-26T21:41:04Z event ready("de_DE-thorsten-high")
+2026-11-26T21:41:04Z event loading("ears")
+2026-11-26T21:41:04Z sidecar bridges ["ev": bridges, "count": 323, "cached": 323]
+2026-11-26T21:41:05Z event warm
+2026-11-26T21:41:05Z event transcript("Jarvis, such mir bitte im Internet die aktuellen Nachrichten zu Apple.", XoolOS.Heard(kind: "websuche", route: "web", tools: true, named: true, ms: 1913))
+2026-11-26T21:41:05Z bridge websuche after 19 ms
+2026-11-26T21:41:05Z sidecar sound ["kind": bridge, "ev": sound, "ms": 1933]
+2026-11-26T21:41:05Z event bridge("Einen Augenblick, ich suche.")
+2026-11-26T21:41:05Z event speaking(true)
+2026-11-26T21:41:07Z event speaking(false)
+2026-11-26T21:41:07Z event idle
+2026-11-26T21:41:13Z say: Ich suche gerade nach den neuesten Meldungen von Apple für dich.
+2026-11-26T21:41:13Z first sentence after 7219 ms (web)
+2026-11-26T21:41:13Z event speaking(true)
+2026-11-26T21:41:13Z sidecar sound ["ms": 9496, "kind": say, "ev": sound]
+2026-11-26T21:41:16Z event speaking(false)
+2026-11-26T21:41:16Z event idle
+2026-11-26T21:41:20Z say: Es gibt gerade viel Aufregung um ein Leak von Mark Gurman, das 20 neue Apple-Produkte für 2026 und 2027 verrät.
+2026-11-26T21:41:20Z event speaking(true)
+2026-11-26T21:41:21Z say: Zudem berichten Seiten wie Business Insider über die Neuheiten der September-Keynote dieses Jahres.
+2026-11-26T21:41:40Z event speaking(false)
+2026-11-26T21:41:40Z event idle
+2026-11-26T21:42:04Z sidecar saved ["seconds": 34.41, "path": /private/tmp/claude-501/app/web-out.wav, "ev": saved]

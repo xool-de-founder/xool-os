@@ -218,7 +218,7 @@ def main() -> int:
     ap.add_argument("--out", default=str(ROOT / "docs" / "voice-e2e"))
     ap.add_argument("--model", default="gemma4:12b")
     a = ap.parse_args()
-    out = Path(a.out)
+    out = Path(a.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
     report: dict = {"model": a.model, "turns": [], "checks": {}}
     checks = report["checks"]

@@ -129,7 +129,7 @@ final class VoiceBridge: ObservableObject {
         + "Never say that you can't receive speech or answer aloud. "
         + (SidecarEngine.installed
            ? "Your own voice (Whisper and Piper, on this Mac) is set up."
-           : "Your own voice isn't set up yet: the card “Set up the voice” in your office installs it (about 2.5 GB); until then you speak with the Mac's own voice.")
+           : "Your own voice isn't set up yet: the card “Set up the voice” in your office installs it (about 3 GB); until then you speak with the Mac's own voice.")
     }
 
     private var restarts: [Date] = []
@@ -482,8 +482,10 @@ final class VoiceBridge: ObservableObject {
 
     /// What you said. With a key or button you meant it; in a conversation the sentence first has to be
     /// meant for Jarvis (his name, an open session, or the small model says so).
-    private func heard(_ raw: String, info: Heard) {
+    private func heard(_ raw: String, info given: Heard) {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        // The Mac's own recognition brings no judgement: make the instant one here.
+        let info = given.route.isEmpty && !text.isEmpty ? QuickJudge.judge(text, name: AgentStore.shared.jarvis.name) : given
         if discardNext { discardNext = false; state = handsFree ? .listening : .idle; return }
         if let deliver = dictation {
             dictation = nil

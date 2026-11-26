@@ -76,6 +76,12 @@ struct VoiceSetupCard: View {
     @ObservedObject private var voice = VoiceBridge.shared
     @ObservedObject private var setup = LocalSetup.shared
 
+    /// The script's own lines ("Installing …", "Ears ▕███░▏ 43%"), not a library's raw progress bars.
+    private static func readable(_ line: String) -> Bool {
+        let own = ["▶", "✔", "✘", "Installing", "Downloading", "Getting", "Fetching the", "Ears", "Phrases", "The voice", "Voice", "macOS", "The ears", "The first"]
+        return own.contains { line.hasPrefix($0) } && (!line.contains("|") || line.contains("▕"))
+    }
+
     var body: some View {
         if setup.running {
             VStack(alignment: .leading, spacing: 6) {
@@ -88,7 +94,7 @@ struct VoiceSetupCard: View {
                 ProgressView(value: setup.download ?? (Double(max(setup.step - 1, 0)) / Double(max(setup.steps, 1))))
                     .progressViewStyle(.linear).tint(Theme.focus)
                 // The newest readable line (not a raw download bar of some library).
-                if let last = setup.lines.last(where: { !$0.contains("|") || $0.contains("▕") }) {
+                if let last = setup.lines.last(where: Self.readable) {
                     Text(last).font(Theme.small).foregroundStyle(Theme.textMuted).lineLimit(1)
                 }
             }
@@ -107,7 +113,7 @@ struct VoiceSetupCard: View {
         } else if !SidecarEngine.installed {
             HStack(alignment: .center, spacing: Theme.Space.s) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Set up the voice (about 2.5 GB)").font(Theme.body).foregroundStyle(Theme.text)
+                    Text("Set up the voice (about 3 GB)").font(Theme.body).foregroundStyle(Theme.text)
                     Text("Jarvis then hears and speaks on this Mac, no cloud. Until then he speaks with the Mac's own voice.")
                         .font(Theme.small).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
                 }

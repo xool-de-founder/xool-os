@@ -1,0 +1,74 @@
+{
+  "model": "gemma4:12b",
+  "turns": [
+    {
+      "tag": "1-wissen",
+      "heard": "Jarvis, wie heißt die Hauptstadt von Frankreich und was ist dort besonders bekannt?",
+      "route": "wissen",
+      "kind": "frage",
+      "tools": false,
+      "named": true,
+      "ms_stt": 220,
+      "ms_after_end": 1,
+      "early": true,
+      "ms_llm_first_sentence": 270,
+      "answer": "Die Hauptstadt von Frankreich ist Paris. Die Stadt ist vor allem für den Eiffelturm und ihre berühmte Kunstszene bekannt.",
+      "bridge": "Hm, warte mal.",
+      "bridge_group": "frage",
+      "ms_bridge_after_end": 1,
+      "ms_bridge_sound": 1,
+      "ms_first_sound": 1144,
+      "output_heard_by_whisper": "N, warte mal. Die Hauptstadt von Frankreich ist Paris. Die Stadt ist vor allem für den Eiffelturm und ihre berühmte Kunstszene bekannt."
+    },
+    {
+      "tag": "2-web",
+      "heard": "Jarvis, such mir bitte im Internet die aktuellen Nachrichten zu Apple.",
+      "route": "web",
+      "kind": "websuche",
+      "tools": true,
+      "named": true,
+      "ms_stt": 216,
+      "ms_after_end": 0,
+      "early": true,
+      "ms_llm_first_sentence": 290,
+      "answer": "Ich habe die aktuellen Nachrichten zu Apple für Sie zusammengefasst. Es gibt derzeit viele Berichte über neue Produktankündigungen und die neuesten Entwicklungen bei der Künstlichen Intelligenz. Soll ich Ihnen die wichtigsten Details dazu vorlesen?",
+      "bridge": "Ich schau schnell nach.",
+      "bridge_group": "websuche",
+      "ms_bridge_after_end": 0,
+      "ms_bridge_sound": 0,
+      "ms_first_sound": 1303,
+      "output_heard_by_whisper": "N, warte mal. Die Hauptstadt von Frankreich ist Paris. Die Stadt ist vor allem für den Eiffelturm und ihre berühmte Kunstszene bekannt. Ich schaue schnell nach. Ich habe die aktuellen Nachrichten zu Apple für Sie zusammengefasst. Es gibt derzeit viele Berichte über neue Produkthankündigungen und die neuesten Entwicklungen bei der künstlichen Intelligenz. Soll ich Ihnen die wichtigsten Details dazu vorlesen?"
+    },
+    {
+      "tag": "4-nicht-gemeint",
+      "heard": "Schatz, kannst du bitte den Tisch decken? Das Essen ist gleich fertig.",
+      "named": false,
+      "route": "wissen"
+    }
+  ],
+  "checks": {
+    "1 question heard": true,
+    "1 route is knowledge, no tools": true,
+    "1 answer audible (Paris in the output WAV)": true,
+    "1 no markdown spoken": true,
+    "2 route is web": true,
+    "2 bridge phrase announces the search": true,
+    "3a no self barge-in with echo in the microphone": true,
+    "3b barge-in detected": true,
+    "3b stop took < 150 ms after the decision": true,
+    "3b what was said over it is heard": true,
+    "4 'not meant for Jarvis': no name in the sentence": true
+  },
+  "echo_g_learned": null,
+  "barge_in": {
+    "ms_from_voice_onset_to_silence": 160,
+    "wav_onset_ms": 18,
+    "ms_stop": 0.1,
+    "ms_total": 400
+  },
+  "barge_in_followup_heard": "Warte mal kurz, ich habe eine andere Frage.",
+  "bridge_library": {
+    "phrases": 323,
+    "groups": 21
+  }
+}

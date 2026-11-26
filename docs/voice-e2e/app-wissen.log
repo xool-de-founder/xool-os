@@ -1,0 +1,16 @@
+2026-11-26T21:52:42Z event ready("de_DE-thorsten-high")
+2026-11-26T21:52:42Z event loading("ears")
+2026-11-26T21:52:43Z sidecar bridges ["ev": bridges, "cached": 323, "count": 323]
+2026-11-26T21:52:44Z event warm
+2026-11-26T21:52:44Z event transcript("Jarvis, wie heißt die Hauptstadt von Frankreich und was ist dort besonders bekannt?", XoolOS.Heard(kind: "frage", route: "wissen", tools: false, named: true, ms: 1976))
+2026-11-26T21:52:44Z bridge frage after 12 ms
+2026-11-26T21:52:44Z sidecar sound ["ev": sound, "kind": bridge, "ms": 1989]
+2026-11-26T21:52:44Z event bridge("Ah, da fällt mir was ein.")
+2026-11-26T21:52:44Z event speaking(true)
+2026-11-26T21:52:45Z say: Die Hauptstadt von Frankreich ist Paris.
+2026-11-26T21:52:45Z first sentence after 666 ms (wissen)
+2026-11-26T21:52:45Z say: Sie ist vor allem für den Eiffelturm und das berühmte Museum Louvre bekannt.
+2026-11-26T21:52:46Z sidecar sound ["kind": say, "ev": sound, "ms": 3743]
+2026-11-26T21:52:54Z event speaking(false)
+2026-11-26T21:52:54Z event idle
+2026-11-26T21:52:58Z sidecar saved ["seconds": 10.08, "path": /private/tmp/claude-501/app/wissen-out.wav, "ev": saved]

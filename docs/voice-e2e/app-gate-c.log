@@ -1,0 +1,20 @@
+2026-11-26T21:43:10Z event ready("de_DE-thorsten-high")
+2026-11-26T21:43:10Z event loading("ears")
+2026-11-26T21:43:10Z sidecar bridges ["cached": 323, "count": 323, "ev": bridges]
+2026-11-26T21:43:12Z event warm
+2026-11-26T21:43:12Z event transcript("Und wie viele Einwohner hat die Stadt ungefähr?", XoolOS.Heard(kind: "websuche", route: "web", tools: true, named: false, ms: 1949))
+2026-11-26T21:43:12Z addressee: "Und wie viele Einwohner hat die Stadt ungefähr?" → for Jarvis in 194 ms via gemma4:12b
+2026-11-26T21:43:12Z bridge websuche after 33 ms
+2026-11-26T21:43:12Z sidecar sound ["ev": sound, "kind": bridge, "ms": 2182]
+2026-11-26T21:43:12Z event bridge("Ich frag mal das Internet.")
+2026-11-26T21:43:12Z event speaking(true)
+2026-11-26T21:43:13Z event speaking(false)
+2026-11-26T21:43:13Z event idle
+2026-11-26T21:43:19Z say: Damit ich dir das sagen kann:
+2026-11-26T21:43:19Z first sentence after 6941 ms (web)
+2026-11-26T21:43:19Z event speaking(true)
+2026-11-26T21:43:19Z sidecar sound ["ms": 9289, "ev": sound, "kind": say]
+2026-11-26T21:43:19Z say: Um welche Stadt geht es?
+2026-11-26T21:43:24Z event speaking(false)
+2026-11-26T21:43:24Z event idle
+2026-11-26T21:43:26Z sidecar saved ["path": /private/tmp/claude-501/app/gate-c-out.wav, "seconds": 12.05, "ev": saved]

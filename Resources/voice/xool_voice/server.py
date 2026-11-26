@@ -383,8 +383,8 @@ class Server:
                 self.detector.reset()  # the tail of our own voice in the microphone
                 continue
             ev = self.detector.feed(prob, chunk)
-            self._early_transcribe()
             if ev is None:
+                self._early_transcribe()  # (not on "end": the detector has just been reset)
                 continue
             if ev.kind == "start":
                 self.emit("speech_start")

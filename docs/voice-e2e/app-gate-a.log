@@ -1,0 +1,8 @@
+2026-11-26T21:42:54Z event ready("de_DE-thorsten-high")
+2026-11-26T21:42:54Z event loading("ears")
+2026-11-26T21:42:54Z sidecar bridges ["ev": bridges, "count": 323, "cached": 323]
+2026-11-26T21:42:56Z event warm
+2026-11-26T21:42:56Z event transcript("Schatz, kannst du bitte den Tisch decken, das Essen ist gleich fertig.", XoolOS.Heard(kind: "erzaehlung", route: "wissen", tools: false, named: false, ms: 2243))
+2026-11-26T21:42:56Z addressee: "Schatz, kannst du bitte den Tisch decken, das Essen ist glei" → not for Jarvis in 221 ms via gemma4:12b
+2026-11-26T21:42:56Z ignored (not meant for Jarvis): Schatz, kannst du bitte den Tisch decken, das Essen ist gleich fertig.
+2026-11-26T21:43:04Z sidecar saved ["path": /private/tmp/claude-501/app/gate-a-out.wav, "seconds": 0, "ev": saved]

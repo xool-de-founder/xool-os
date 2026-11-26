@@ -73,6 +73,7 @@ final class AgentRuntime {
         guard let session = AgentControl.shared.begin(agent: agent, stop: { chat.stop(threadID) }) else {
             throw AIError.unreachable("Xool OS has no window open to browse in.")
         }
+        VoiceBridge.log("agent run starts (\(choice.model))")
         let run = AgentRun(threadID: threadID, agent: agent, session: session, skills: skills)
         runs[threadID] = run
         // A run goes on while you work in another app: no App Nap, which
@@ -117,6 +118,7 @@ final class AgentRuntime {
             for try await event in stream {
                 switch event {
                 case .text(let piece):
+                    if said.isEmpty { VoiceBridge.log("agent first token") }
                     said += piece
                     store.mutate(threadID) { $0.messages[$0.messages.count - 1].text += piece }
                 case .call(let call):
@@ -124,6 +126,7 @@ final class AgentRuntime {
                 }
             }
             if Task.isCancelled { return }
+            VoiceBridge.log("agent round done: \(calls.count) call(s)")
             guard !calls.isEmpty else {
                 // A model that only says what it is about to do ("Ich suche jetzt …") and stops: once, it is told
                 // to do it. Only when the quick judgement said this needs the web, the browser or the brain.

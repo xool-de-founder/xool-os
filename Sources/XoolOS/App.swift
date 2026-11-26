@@ -1040,6 +1040,8 @@ struct ContentView: View {
     var body: some View {
         let _ = Bench.count("content")
         window_
+            // Xool's views in the content area lie on the card (XoolUI.page).
+            .onChange(of: cardInsets, initial: true) { _, now in XoolUI.shared.page = now }
             // The column folded away, and out again at the edge (see Fold.swift).
             .overlay(alignment: sideOnRight ? .trailing : .leading) {
                 if fullscreenTab == nil {

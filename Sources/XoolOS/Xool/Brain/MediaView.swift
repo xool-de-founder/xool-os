@@ -29,7 +29,6 @@ struct MediaView: View {
                 }
             }
         }
-        .padding(.top, 28)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Theme.canvas)
         .overlay {
@@ -110,22 +109,24 @@ struct MediaView: View {
         let on = picked == item.id
         return Button { picked = on ? nil : item.id } label: {
             VStack(alignment: .leading, spacing: 6) {
-                ZStack {
-                    Rectangle().fill(Theme.surface)
-                    if let image = store.thumbnail(item) {
-                        Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
-                    } else {
-                        Image(systemName: item.mediaType?.symbol ?? "doc").font(.system(size: 24, weight: .light)).foregroundStyle(Theme.faint)
+                Theme.surface
+                    .aspectRatio(4.0 / 3.0, contentMode: .fit)
+                    .overlay {
+                        if let image = store.thumbnail(item) {
+                            Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
+                        } else {
+                            Image(systemName: item.mediaType?.symbol ?? "doc").font(.system(size: 24, weight: .light)).foregroundStyle(Theme.faint)
+                        }
                     }
-                    if item.indexing { ProgressView().controlSize(.small) }
-                    if item.mediaType == .video || item.mediaType == .audio {
-                        Image(systemName: item.mediaType == .video ? "play.fill" : "waveform")
-                            .font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.text)
-                            .frame(width: 26, height: 26).background(Circle().fill(Theme.canvas.opacity(0.8)))
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing).padding(6)
+                    .overlay { if item.indexing { ProgressView().controlSize(.small) } }
+                    .overlay(alignment: .bottomTrailing) {
+                        if item.mediaType == .video || item.mediaType == .audio {
+                            Image(systemName: item.mediaType == .video ? "play.fill" : "waveform")
+                                .font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.text)
+                                .frame(width: 26, height: 26).background(Circle().fill(Theme.canvas.opacity(0.8)))
+                                .padding(6)
+                        }
                     }
-                }
-                .aspectRatio(4.0 / 3.0, contentMode: .fit)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.row, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: Theme.Radius.row, style: .continuous)
                     .strokeBorder(on ? Theme.focus : Theme.line, lineWidth: on ? 2 : 1))

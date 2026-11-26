@@ -102,21 +102,20 @@ struct ShortcutsPopover: View {
             Group(id: "Navigation", items: [
                 command("tabs.back"), command("tabs.forward"), command("view.reload"),
                 command("file.openAddress", "Address"), command("edit.find", "Find on page"),
-                command("view.fold", "Hide sidebar"),
             ].compactMap { $0 }),
             Group(id: "Tabs", items: [
-                command("file.newTab"), command("file.closeTab"), command("file.reopen"),
+                command("file.newTab"), command("file.closeTab"), command("file.reopen", "Reopen tab"),
                 command("tabs.next"), command("tabs.previous"), command("tabs.search", "Search tabs"),
             ].compactMap { $0 }),
             Group(id: "Agents", items: [
-                fixed("Agents overview", "⇧⌘A"), fixed("Agent 1–9", "⌥1…9"), fixed("Send", "↩"),
+                fixed("Agents panel", "⇧⌘A"), fixed("Agent 1–9", "⌥1…9"),
             ]),
             Group(id: "Brain", items: [
                 command("brain.open", "Show Brain"), command("brain.savePage", "Save page"),
                 fixed("Mention an entry", "@"),
             ].compactMap { $0 }),
             Group(id: "Voice", items: [
-                fixed("Push to talk", "fn"), fixed("or", "⌥ Space"),
+                fixed("Push to talk", "fn"), fixed("Talk, other key", "⌥Space"),
             ]),
         ]
     }
@@ -149,7 +148,7 @@ struct ShortcutsPopover: View {
                                     Spacer(minLength: 4)
                                     HStack(spacing: 3) { ForEach(Array(item.keys.enumerated()), id: \.offset) { KeyCap(text: $0.element) } }
                                 }
-                                .frame(minHeight: 22)
+                                .frame(minHeight: 20)
                                 .accessibilityElement(children: .combine)
                                 .accessibilityLabel("\(item.title), \(item.keys.joined(separator: " "))")
                             }
@@ -158,7 +157,7 @@ struct ShortcutsPopover: View {
                 }
                 .padding(.horizontal, Theme.Space.m).padding(.bottom, Theme.Space.m)
             }
-            .frame(maxHeight: 360)
+            .frame(maxHeight: 600)
         }
         .background(RoundedRectangle(cornerRadius: Theme.Radius.popover, style: .continuous).fill(Theme.raised))
         .overlay(RoundedRectangle(cornerRadius: Theme.Radius.popover, style: .continuous).strokeBorder(Theme.line))

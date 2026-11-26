@@ -9,6 +9,7 @@ struct AgentsOverview: View {
     @ObservedObject var store: AgentStore
     @ObservedObject var models: ModelStore
     @ObservedObject var runtime: ChatRuntime
+    @XState private var escape: Any?
 
     /// The agent whose thread is in front: its tile is raised.
     private var activeAgent: UUID? { ui.front.flatMap { store.thread($0)?.agentID } }
@@ -73,8 +74,15 @@ struct AgentsOverview: View {
         .background(Theme.canvas)
         .overlay(alignment: .leading) { Theme.line.frame(width: 1) }
         .transition(Motion.reduced ? .identity : .move(edge: .trailing).combined(with: .opacity))
-        // Esc closes it.
-        .onExitCommand { ui.showAgents = false }
+        // Esc closes it, wherever the keys are (the event goes on to
+        // whoever else wants it).
+        .onAppear {
+            escape = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                if event.keyCode == 53 { MainActor.assumeIsolated { ui.showAgents = false } }
+                return event
+            }
+        }
+        .onDisappear { if let escape { NSEvent.removeMonitor(escape) }; escape = nil }
     }
 
     private func row(_ agent: Agent) -> some View {

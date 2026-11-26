@@ -32,6 +32,9 @@ final class XoolUI: ObservableObject {
     @Published var showBrain = false
     @Published var showMedia = false
     @Published var showKeys = false
+    /// Where the page's card lies in the window (ContentView sets it): the
+    /// views that open in the content area (Brain, Media, Tabs) sit exactly there.
+    @Published var page = EdgeInsets()
     /// When the shortcuts popover last closed, so the button that closed it
     /// (a click outside) does not open it again.
     private var keysClosedAt = Date.distantPast

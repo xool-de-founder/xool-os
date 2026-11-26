@@ -26,18 +26,20 @@ struct XoolShell<Content: View>: View {
                     FloatingThread(ui: ui, store: store, runtime: runtime, models: models)
                         .padding(.bottom, AgentDock.height)
                 }
+                // The views that open in the content area lie exactly on the
+                // page's card: the column and the agent row stay in reach.
                 if ui.showTabs {
                     TabsOverview(browser: browser, ui: ui)
-                        .padding(.bottom, AgentDock.height)
+                        .modifier(PageFrame(insets: ui.page))
                 }
                 if ui.showBrain {
                     BrainView(ui: ui, browser: browser)
-                        .padding(.bottom, AgentDock.height)
+                        .modifier(PageFrame(insets: ui.page))
                         .transition(.opacity)
                 }
                 if ui.showMedia {
                     MediaView(ui: ui, browser: browser)
-                        .padding(.bottom, AgentDock.height)
+                        .modifier(PageFrame(insets: ui.page))
                         .transition(.opacity)
                 }
                 AgentDock(ui: ui, store: store, models: models, runtime: runtime)
@@ -49,6 +51,8 @@ struct XoolShell<Content: View>: View {
                 ThreadSidebar(ui: ui, store: store, runtime: runtime, models: models)
             }
         }
+        // Under the title bar's band, as the window's own layers are.
+        .ignoresSafeArea(.container, edges: .top)
         .animation(Theme.motion(Theme.grow), value: ui.hasThreads)
         .animation(Theme.motion(Theme.grow), value: ui.minimized)
         .animation(Theme.motion(Theme.morph), value: ui.mode)
@@ -64,5 +68,15 @@ struct XoolShell<Content: View>: View {
             VoiceBridge.shared.install()
             XoolUI.shared.applyLaunchRequest()
         }
+    }
+}
+
+/// A view laid over the page's card: its insets, its corners.
+struct PageFrame: ViewModifier {
+    let insets: EdgeInsets
+    func body(content: Content) -> some View {
+        content
+            .clipShape(RoundedRectangle(cornerRadius: insets.leading > 0 && insets.top > 0 && insets.trailing > 0 ? Metrics.cardRadius : 0, style: .continuous))
+            .padding(insets)
     }
 }

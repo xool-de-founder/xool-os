@@ -308,7 +308,10 @@ final class SceneView: NSView {
     /// the setting on, and Reduce Motion off.
     private func settle() {
         let visible = window.map { $0.occlusionState.contains(.visible) && !$0.isMiniaturized } ?? false
-        let go = wantsMotion && !Motion.reduced && visible && NSApp.isActive && !NSApp.isHidden
+        // Profile runs only: XOOL_SCENE=force runs it whatever the window
+        // state, to measure it on a Mac whose screen is asleep or locked.
+        let forced = getenv("XOOL_PROFILE") != nil && getenv("XOOL_SCENE").map { String(cString: $0) == "force" } == true
+        let go = wantsMotion && !Motion.reduced && (forced || (visible && NSApp.isActive && !NSApp.isHidden))
         guard go != running else { return }
         running = go
         rebuild()

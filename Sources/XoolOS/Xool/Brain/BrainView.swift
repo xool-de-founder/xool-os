@@ -43,7 +43,6 @@ struct BrainView: View {
                 preview.frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .padding(.top, 28)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Theme.canvas)
         .overlay {

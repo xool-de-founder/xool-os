@@ -589,7 +589,7 @@ struct AddressField: NSViewRepresentable {
             string: words,
             attributes: [
                 .font: NSFont.systemFont(ofSize: size),
-                .foregroundColor: NSColor(Palette.ink.opacity(0.3)),
+                .foregroundColor: Palette.NS.muted,
             ]
         )
     }

@@ -1,13 +1,16 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// "Resources" in the column (docs/PLAN.md 6, F): Brain (everything
+/// "Sources" in the column (docs/PLAN.md 6, F; 8, B): Brain (everything
 /// written), Bookmarks, Media (pictures, video, audio). Each with its icon
 /// and its name; quiet `text-muted`, `text` while it is the one open.
 struct SidebarResources: View {
     static let rowHeight: CGFloat = 30
     static let headerHeight: CGFloat = 22
     static let height: CGFloat = headerHeight + 3 * rowHeight
+    /// Under Media, before the foot: 20 pt to the Settings row, whose own
+    /// row is centred in the foot's 36 (4 pt of it above).
+    static let footGap: CGFloat = 16
 
     @ObservedObject var browser: Browser
     @ObservedObject private var ui = XoolUI.shared
@@ -17,9 +20,11 @@ struct SidebarResources: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Resources")
+            // Quieter than its rows: 11 pt, 550, `text-muted` at 70 %.
+            Text("Sources")
                 .font(Theme.font(Theme.Size.caption, Theme.Weight.label))
-                .foregroundStyle(Theme.textMuted)
+                .foregroundStyle(Theme.textMuted.opacity(0.7))
+                .accessibilityAddTraits(.isHeader)
                 .padding(.leading, 8)
                 .frame(height: Self.headerHeight, alignment: .leading)
             ResourceRow(symbol: "brain", title: "Brain", on: ui.showBrain, targeted: brainTargeted,

@@ -307,7 +307,7 @@ struct SideBar: View {
             }
             .padding(.bottom, (browser.player == nil ? 0 : rowHeight + SideBar.playerGap)
                      + (agentHere && !icons ? agentCard + SideBar.playerGap : 0)
-                     + (icons ? 0 : SidebarResources.height + SideBar.playerGap))
+                     + (icons ? 0 : SidebarResources.height + SidebarResources.footGap))
 
             VStack(spacing: 0) {
                 Spacer()
@@ -324,7 +324,7 @@ struct SideBar: View {
                 if !icons {
                     SidebarResources(browser: browser)
                         .padding(.horizontal, 10)
-                        .padding(.bottom, SideBar.playerGap)
+                        .padding(.bottom, SidebarResources.footGap)
                 }
                 if let tab = browser.player {
                     PlayerRow(browser: browser, prefs: prefs, tab: tab)

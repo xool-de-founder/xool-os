@@ -1,0 +1,12 @@
+Xool voice sidecar (xool_voice)
+
+Adapted from "Jarvis Stimme" (jarvis_stimme) of github.com/Paulito12209/jarvis-on-nod,
+by the same author as Xool OS: voice activity detection (vad.py), microphone and
+speaker streams (audio.py), speech to text (stt.py), text to speech (tts.py),
+bridge phrases (bruecken.py), text cleanup (text.py). The thinking, tools and
+conversation memory moved into the app's agents; this process only listens and speaks.
+
+It installs, at setup time and not as part of this repository, programs and models with their own
+licences: Piper TTS (GPL-3.0), the voice "Thorsten" by Thorsten Müller (CC0),
+mlx-whisper and Whisper (MIT, OpenAI), faster-whisper (MIT), Silero VAD (MIT),
+sounddevice (MIT), numpy (BSD). See THIRD_PARTY_NOTICES.md at the top of the repository.

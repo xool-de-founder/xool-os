@@ -2,7 +2,7 @@
 
 Ein schneller, nativer macOS-Browser mit KI-Agents (lokal zuerst, Cloud per API-Key optional), Second Brain, Sprachsteuerung mit Duplex-Mechanik und einer Design-Fläche mit Notion-artigen `/`-Blöcken.
 
-Stand: 2026-11-26 · Status: Plan, noch kein Code im Repo.
+Stand: 2026-11-26 · Status: Phasen 0–5 umgesetzt, Phase 6 (UI-Korrekturen) als Nächstes, dann Phase 7 (Canvas).
 
 ---
 
@@ -285,9 +285,64 @@ Unendliche Fläche (Rahmen, Formen, Text, Bilder, Verbindungen, Zoom/Pan) wie Fi
 - BrainStore, Ingest aller Dateitypen, Bookmarks/Skills/Docs, Brain-Ansicht in der Sidebar, Brain-Tools für Agents.
 - **Fertig, wenn:** PDF/Bild/Markdown reinziehen → in Sekunden über Volltext und Bedeutung auffindbar, Agent zitiert daraus.
 
-### Phase 6 – Canvas + Blöcke
+### Phase 6 – UI-Korrekturen nach Review (vor allem anderen)
+
+Feedback aus dem ersten echten Test (Screenshots hell/dunkel, 2026-11-26). Diese Phase **ersetzt** die Abschnitte 4.1, 4.3 und 4.5 dort, wo sie widersprechen. Was hier steht, ist ab jetzt der **Layout-Vertrag** (siehe 6.1) und gilt für alle späteren Phasen.
+
+**A. Kontrast in der Sidebar**
+- Zurück / Vor / Neu laden oben neben den Ampeln sind kaum sichtbar. Aktiv: `text-muted` (≥ 4.5:1 gegen `canvas`), Hover: `text`, deaktiviert: `text-muted` mit 45 % Deckkraft (nicht unsichtbar). Hell und dunkel prüfen.
+- Die Zeile „+ New tab“ unter dem aktiven Tab ist zu schwach: auch `text-muted`, Hover `text` mit `raised`-Fläche.
+
+**B. Untere Leiste neu: nur Agents, rechts ausgerichtet**
+- Die durchgehende Fensterleiste unten (über Sidebar und Inhalt) entfällt. Die Sidebar reicht bis ganz nach unten.
+- Unter der Inhaltsfläche bleibt ein schmaler Streifen (gleiche Höhe wie heute, **ohne** Trennlinie und ohne eigene Fläche, `canvas`-Hintergrund). Er enthält **nur** die Agent-Pills und den „Agents“-Knopf, **rechts ausgerichtet**:
+  `…  [● Chief] [● Mktg] [● Inbox] [● Launch Bot]  [⌗ Agents]|` – der Agents-Knopf liegt bündig am rechten Rand (gleicher Abstand wie die Inhaltsfläche), der **erste Agent sitzt direkt links daneben**, weitere Agents reihen sich nach links an. `+` (Agent anlegen) steht ganz links in der Pill-Reihe.
+- Der Modell-Chip zieht aus der Leiste ins Eingabefeld (siehe D) und in den Kopf des Thread-Fensters (gibt es schon).
+- Thread-Schwebefenster sitzt weiterhin unten rechts, jetzt direkt über diesem Streifen.
+
+**C. Agents-Übersicht rechts statt Sidebar-Abschnitt**
+- Den Sidebar-Abschnitt „Agents“ entfernen. Agent-Tabs bleiben in der normalen Tab-Liste, erkennbar am Ring in Agent-Farbe.
+- Der Agents-Knopf öffnet die Übersicht als **rechtes Seitenpanel** (schiebt den Inhalt, verdeckt ihn nicht), genau wie Referenz-Screenshot: oben angepinnte Agents groß als Blob-Avatar mit Namen darunter (der aktive mit `raised`-Fläche hinterlegt), darunter Liste aller Agents mit Blob, Name und letzter Nachricht (eine Zeile, abgeschnitten). **Keine** Profilzeile unten. Esc oder erneuter Klick schließt.
+
+**D. Eingabefeld (Neuer Tab und Adressfeld) überarbeiten**
+- Höher und ruhiger: 52 pt, Radius 12, `surface`-Fläche mit 1 px `line`, kein Schlagschatten, im Dunkeln keine sichtbare Kastenkante außer der Haarlinie. Platzhalter: „Adresse eingeben oder Agent fragen“.
+- Rechts im Feld: **Modell-Chip** (klein, `text-muted`), dann **Diktat-Knopf** mit Wellenform-Icon (`waveform`). Klick startet Diktat über die VoiceBridge aus Phase 4 (Text landet im Feld, Wellenform animiert während der Aufnahme, Esc bricht ab). Gleiches Diktat auch im Thread-Eingabefeld (das Mikrofon dort wird auf `waveform` vereinheitlicht).
+- Kein Composer mit Anhängen/Werkzeugen in diesem Feld.
+
+**E. Neuer-Tab-Visual (nur Code, dezent)**
+- Referenz: Logo in der Mitte, dahinter Lichtstreifen, unten flüssiges Metall. Umsetzung **zurückhaltender**:
+  - Mitte: das Xool-Zeichen (geschwungenes „Λ“, als Vektorpfad nachgezeichnet, metallischer Verlauf `text` → `text-muted`), ~56 pt, über dem Eingabefeld.
+  - Dahinter **Sternschnuppen / Warp**: wenige (12–20) feine Lichtstriche, die aus der Mitte hinter dem Logo nach außen beschleunigen und verblassen, wie ein Sprung auf Lichtgeschwindigkeit. Farbe kühles Weiß/Blau mit niedriger Deckkraft (≤ 35 %). Kein Bokeh-Teppich.
+  - Unten: **sehr flache, langsame Metallwelle** (eine Fläche, ein Glanzlicht), maximal unteres Fünftel, Deckkraft niedrig, keine klassischen Sinuswellen-Linien.
+  - Hell-Modus: dieselbe Szene mit grauem Metall auf `canvas`, Striche in Grau.
+  - Technik: Core Animation oder Metal-Layer, kein Video, kein Bild. Läuft nur, solange der Neue Tab sichtbar ist (pausiert sonst), < 3 % CPU. Bei `reduce motion` statisches Standbild.
+  - Abschaltbar in Einstellungen › Erscheinungsbild („Bewegter Hintergrund im neuen Tab“).
+
+**F. Sidebar-Gruppen neu**
+- Gruppe **„Ressourcen“** (Abschnittstitel wie heute „Agents“, Satzschreibung) mit drei Einträgen, alle mit Icon **und** ausgeschriebenem Namen:
+  - **Brain** – alles Schriftliche: Docs, Notizen, Skills, gespeicherte Seiten, Dateien mit Text.
+  - **Lesezeichen** – die Bookmarks (heute nur ein Icon ohne Text).
+  - **Medien** – Bilder, Videos, Audio (Brain-Einträge mit Bild/Video/Audio-Typ, eigene Rasteransicht mit Vorschaubildern).
+- Brain-Ansicht filtert Medien künftig aus; Medien-Ansicht zeigt nur diese. Gleicher BrainStore, nur ein anderer Filter.
+
+**G. Sidebar-Fuß**
+- Ganz unten in der Sidebar **eine** Zeile: links `⚙ Einstellungen` (Icon + Text, `text-muted`, Hover `text`), rechts zwei Icon-Knöpfe ohne Text: **Tastatur** (`keyboard`) und **Hell/Dunkel-Umschalter** (`sun.max` / `moon`, schaltet zwischen hell, dunkel; Rechtsklick „Wie der Mac“). Kein Profilbild.
+- Icon-Hierarchie: Navigationseinträge `text` (aktiv) / `text-muted` (ruhig); Fuß-Icons `text-muted`, Hover `text` auf `raised`; nichts davon in Akzent- oder Agent-Farbe.
+- Tastatur-Knopf öffnet ein **Popover innerhalb der Sidebar direkt über der Einstellungen-Zeile** (gleiche Breite wie die Sidebar minus Rand, Radius 10, `raised`): Titel „Tastenkürzel“, gruppierte Liste (Navigation, Tabs, Agents, Brain, Stimme) mit den echten Kürzeln aus `ShortcutsPage`/Menüs, Kürzel rechts als Tastenkappen. Esc oder Klick daneben schließt. Später (nicht jetzt) kann hier ein Kennenlern-Rundgang dazukommen.
+
+**Fertig, wenn:** alle Punkte A–G in hell und dunkel per Screenshot belegt sind (Neuer Tab mit Visual, Thread offen, Agents-Panel offen, Tastenkürzel-Popover offen, Medien-Ansicht); Kontraste der Sidebar-Icons gemessen ≥ 4.5:1 (aktiv) bzw. ≥ 3:1 (Icons); Visual pausiert im Hintergrund und respektiert `reduce motion`; Release-Build grün; committet und gepusht.
+
+#### 6.1 Layout-Vertrag (gilt ab Phase 6 für alle Phasen)
+- Sidebar von oben nach unten: Ampeln + Zurück/Vor/Neu laden · Tabs (Gepinnt, Heute …) · Gruppe „Ressourcen“ (Brain, Lesezeichen, Medien) · Fuß (Einstellungen | Tastatur, Hell/Dunkel). Keine Agents-Liste in der Sidebar.
+- Unten rechts unter dem Inhalt: Agent-Pills + Agents-Knopf, rechtsbündig. Sonst nichts in dieser Zeile.
+- Agents-Übersicht und Threads (als Seitenleiste) erscheinen **rechts**.
+- Modell-Wahl lebt im Eingabefeld und im Thread-Kopf.
+- Neue Funktionen (z. B. Canvas) bekommen einen Eintrag in der Sidebar (Tabs-Bereich oder „Ressourcen“) und öffnen im Inhaltsbereich; sie ändern diese Struktur nicht. Abweichungen nur nach Rückfrage.
+
+### Phase 7 – Canvas + Blöcke
 - `web/canvas` (TipTap + Slash-Menü + Canvas-Engine), Host in WKWebView, Speichern im Brain, Agent-Befehle.
-- **Fertig, wenn:** Frame anlegen, Text mit `/` in Blöcke verwandeln, Bild einfügen, speichern, nach Neustart wieder da.
+- Einstieg: Canvas-Dokumente erscheinen als eigene Einträge in der Tab-Liste bzw. unter „Ressourcen › Brain“; der Layout-Vertrag 6.1 bleibt unverändert, Design-Tokens aus `Theme.swift`.
+- **Fertig, wenn:** Frame anlegen, Text mit `/` in Blöcke verwandeln, Bild einfügen, speichern, nach Neustart wieder da; Screenshots zeigen, dass Sidebar, untere Agent-Zeile und Eingabefeld exakt wie nach Phase 6 aussehen.
 
 ---
 
@@ -335,3 +390,5 @@ Umgesetzt: `Xool/Brain/` — `BrainDB` (System-SQLite3, FTS5, Vektoren als BLOB)
 Geprüft (echter Lauf, Debug- und Release-Build): Markdown, PDF, PNG (OCR) und docx hineingezogen → Volltext in 0 ms, Bedeutungssuche mit `nomic-embed-text` in ca. 10 ms, Treffer zeigen Vorschau und Text; Agent (qwen3.5:27b) ruft `brain_search` und `brain_read` und zitiert die Notiz mit Link. Erste OCR nach App-Start braucht ca. 30 s (ANE-Kompilierung), danach schnell; Text ist sofort suchbar.
 
 Nicht geprüft / bekannt: XCTest; Drag & Drop mit der Maus (nur per Startverb `brainadd` und Code-Pfad `onDrop`); Download-Knopf: Fehler „lädt kurz und springt zurück“ behoben (Status wurde nach dem Pull nicht neu gelesen), aber nicht mit frischem Download wiederholt (Modell war schon da); Speichern einer Webseite und Rechtsklick-Eintrag nur gebaut, nicht per Klick getestet; ⌘K-Treffer nicht im Bild geprüft; Lesezeichen-Sync und Skill-Einträge nicht im Bild. Qualität der Bedeutungssuche: `nomic-embed-text` trennt deutsche Kurztexte schwach (Kosinus 0.5–0.7 für alles); ein mehrsprachiges Modell (z. B. `bge-m3`) in Einstellungen › Modelle › Embeddings ist besser — Wechsel verwirft und erneuert die Vektoren. Spracheingabe liest Markdown-Links als Text vor.
+
+Referenzbilder zu Phase 6: `docs/review/p6-*.png|jpg` (annotierter Screenshot, Sidebar-Fuß, Agents-Panel, Neuer-Tab-Referenz).

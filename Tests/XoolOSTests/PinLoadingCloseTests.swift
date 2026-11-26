@@ -2,7 +2,7 @@ import AppKit
 import Network
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A pin put down while its page is still loading stops saying it loads:
 /// its row's spinner went on for good, since the view's own "done" went

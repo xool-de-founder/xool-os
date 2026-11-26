@@ -1,7 +1,7 @@
 import AppKit
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Coding agents (AgentControl): the question's rules, what may be read and
 /// where an agent may go, what a page's secret fields give back, and the

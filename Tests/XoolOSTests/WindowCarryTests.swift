@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// windows.json while the app is still launching: the windows open written,
 /// then last time's not yet brought back, each window once (see

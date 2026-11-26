@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 @MainActor
 final class TabSelectionTests: XCTestCase {

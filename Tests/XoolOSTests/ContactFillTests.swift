@@ -3,7 +3,7 @@ import Contacts
 import Foundation
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Your card in Contacts under a form's boxes: which boxes are offered it
 /// and as what, what a pick puts where, and the rows a card makes.

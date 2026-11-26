@@ -1,7 +1,7 @@
 import JavaScriptCore
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// YouTubeAds' page script run in JavaScriptCore over a stand-in window (a
 /// location, a Response with json()), its rules matched and compiled. No

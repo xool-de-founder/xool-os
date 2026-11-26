@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A coding agent's card at the column's foot and its pill in the strip
 /// (AgentBanner), drawn as "Update ready" is: its name never cut at the

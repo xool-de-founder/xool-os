@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Set Up Like Arc (idea 964): the Arc habits added since 1.0.7 come on
 /// with it, a choice already made is left alone, and Undo puts every key

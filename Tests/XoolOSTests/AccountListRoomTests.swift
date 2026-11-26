@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Many accounts for one site (#1215): the list under a sign-in box is no
 /// taller than the room under the box, or goes above it when there is more

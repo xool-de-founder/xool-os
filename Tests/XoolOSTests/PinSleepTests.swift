@@ -1,7 +1,7 @@
 import AppKit
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Pins in a space you aren't in sleep after the usual wait, except a pin
 /// whose site may send notifications; pins in the space on screen stay

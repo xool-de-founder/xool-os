@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Developer Mode site by site (DevMode.swift): on by itself for a site on
 /// this Mac only, a choice by hand kept per site and dropped once it says

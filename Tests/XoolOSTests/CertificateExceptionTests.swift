@@ -1,6 +1,6 @@
 import Security
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// "Continue Anyway" on a site with a bad certificate trusts that
 /// certificate, for this launch, not the site: a different bad certificate

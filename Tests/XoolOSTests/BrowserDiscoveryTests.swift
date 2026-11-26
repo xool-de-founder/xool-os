@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 final class BrowserDiscoveryTests: XCTestCase {
     func testExtensionOnlyProfileIsDiscoverable() throws {

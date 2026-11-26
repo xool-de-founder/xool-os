@@ -1,6 +1,6 @@
 import XCTest
 import WebKit
-@testable import Search
+@testable import XoolOS
 
 final class CaptureChoicesTests: XCTestCase {
     func testChoicesForIndividualAndCombinedRequestsStaySeparate() throws {

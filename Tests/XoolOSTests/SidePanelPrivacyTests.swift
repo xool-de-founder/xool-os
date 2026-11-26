@@ -1,7 +1,7 @@
 import AppKit
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// An extension's side panel beside a private tab: held back unless that
 /// extension has been let into private tabs. On the model only: no window is

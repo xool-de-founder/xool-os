@@ -1,7 +1,7 @@
 import Foundation
 import XCTest
 import NoWindows
-@testable import Search
+@testable import XoolOS
 
 /// The unit tests' world: one for the whole run, in a temporary folder, and
 /// gone when the run ends.

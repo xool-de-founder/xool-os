@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// View › Hidden on This Site… (idea 1064): a row restored leaves the list at
 /// once, and the panel opens away from where the hidden things sat.

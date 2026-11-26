@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Which of a store's cookies an extension's credentialed fetch carries
 /// (ExtensionFetch.sends), and what of a response it keeps.

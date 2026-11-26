@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A page whose process keeps dying is made again twice a minute at most,
 /// then left to say so: the rule tabs and the side panel share.

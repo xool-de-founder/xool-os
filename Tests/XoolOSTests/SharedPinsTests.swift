@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Pins every space shows (Pins.shared): moving a pin in and out of them,
 /// a row's order, and pins.json with and without them. In memory only.

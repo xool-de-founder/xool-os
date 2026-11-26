@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// The look picker's preview shows the space's colour as the window will
 /// wear it (idea 1040): the colour at full read far brighter than the

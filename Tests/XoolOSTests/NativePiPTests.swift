@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Settings › General › The floating video: Search's window unless picture
 /// in picture is chosen, and the choice kept (idea 376). Entering picture

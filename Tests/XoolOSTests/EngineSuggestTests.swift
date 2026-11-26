@@ -1,7 +1,7 @@
 import AppKit
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Settings › General › Suggestions from your search engine (idea 347).
 @MainActor

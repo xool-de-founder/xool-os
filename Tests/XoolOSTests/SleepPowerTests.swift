@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// How long a tab waits to sleep with Settings › General › Save power in Low
 /// Power Mode on, off, and overridden by the bench.

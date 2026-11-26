@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// The accounts under a sign-in box from the keyboard: ↓ and ↑ light a row,
 /// Return takes it as a click would. Until a row is lit, Return and ↑ stay the

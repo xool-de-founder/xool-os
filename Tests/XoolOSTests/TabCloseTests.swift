@@ -1,7 +1,7 @@
 import AppKit
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Which tab is on screen after the one on screen closes, with and without
 /// Settings › Tabs › Closing a tab goes back to the one before.

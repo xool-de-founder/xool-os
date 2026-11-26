@@ -1,7 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Shortcuts read through each layout's own keys (#1077), from the layouts
 /// installed with macOS: looked up by id, never switched on.

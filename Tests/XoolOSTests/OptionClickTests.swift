@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// ⌥-click on a tab puts it beside the page on screen in Split View (#939),
 /// as its menu's Open in Split View does; on a half of the pair on screen it

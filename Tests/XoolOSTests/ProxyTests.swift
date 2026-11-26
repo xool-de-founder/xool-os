@@ -1,7 +1,7 @@
 import Network
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// The proxy's own rules, without a proxy running: what a typed setting is
 /// allowed to be, which addresses stay direct, what the stores and Search's

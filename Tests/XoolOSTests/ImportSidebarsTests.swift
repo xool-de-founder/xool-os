@@ -2,7 +2,7 @@ import Foundation
 import XCTest
 import SQLite3
 import CommonCrypto
-@testable import Search
+@testable import XoolOS
 
 /// Ardia's, Yab's and Dia's spaces, pins and folders, read from files made
 /// here in each browser's shape (see ImportSidebars.swift). Only synthetic

@@ -1,7 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 @MainActor
 final class LauncherTests: XCTestCase {

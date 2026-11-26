@@ -1,7 +1,7 @@
 import Foundation
 import XCTest
 import SQLite3
-@testable import Search
+@testable import XoolOS
 
 /// Zen's spaces, pins, folders and Essentials, and a Gecko browser's open
 /// tabs, read from files written here by hand in each shape Zen and Firefox

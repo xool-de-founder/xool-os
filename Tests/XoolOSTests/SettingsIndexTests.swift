@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Settings' rows (SettingsIndex): merged controls write the keys the two
 /// switches did, new defaults reach only keys never touched, and an

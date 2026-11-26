@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Capture…'s arithmetic (Snap.swift): what the page chose, in its CSS
 /// pixels, as the rectangle WebKit is asked to draw, with no page or

@@ -1,7 +1,7 @@
 import AppKit
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Which tab the player at the foot of the sidebar is for (Player.swift),
 /// from the tabs' own sound and pause, without a page playing anything.

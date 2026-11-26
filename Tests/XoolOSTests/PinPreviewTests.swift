@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A pin's glance (PinPreview.swift): the unread count a mailbox's title
 /// says, the card refused where it has no business, and on by default.

@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// The count a pin's badge shows, read off the front of its page's title
 /// (UnreadBadge.swift): only a bracketed number at the very front, so a year

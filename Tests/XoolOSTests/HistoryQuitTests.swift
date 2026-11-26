@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// History saves 1.5 s after a visit, so a burst of browsing is one write.
 /// Quitting inside that pause used to lose the visit: nothing ran the write

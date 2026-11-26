@@ -1,7 +1,7 @@
 import AppKit
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A page WebKit's full-screen window has, without going full screen: that
 /// takes a Space of its own on the display, which a test must not do.

@@ -1,6 +1,6 @@
 import CoreServices
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 final class MarkDownloadedTests: XCTestCase {
     func testASavedFileIsMarkedAsDownloaded() throws {

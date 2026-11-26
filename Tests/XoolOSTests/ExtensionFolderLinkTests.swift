@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A folder's extension keeps only the links that lead inside it.
 @available(macOS 15.4, *)

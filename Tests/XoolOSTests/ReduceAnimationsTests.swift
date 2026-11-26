@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Settings › Appearance › Reduce animations (Motion.instant): off unless
 /// turned on, kept, and with it on nothing in Search's interface moves.

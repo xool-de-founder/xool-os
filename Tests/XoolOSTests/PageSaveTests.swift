@@ -1,7 +1,7 @@
 import AppKit
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// File › Save Page As…: one web archive of the tab it was asked for, that
 /// opens again.

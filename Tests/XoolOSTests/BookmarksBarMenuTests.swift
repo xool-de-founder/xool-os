@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// What the bookmarks bar's right-click menu does, without the menu: a
 /// real one is an NSMenu that a hidden run can't open (#439).

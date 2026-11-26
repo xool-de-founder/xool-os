@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A tab dragged onto the pins, and a pin dragged out among the tabs, with
 /// the column's own gestures: the column is hosted in a borderless window

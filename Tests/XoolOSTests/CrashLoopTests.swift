@@ -1,7 +1,7 @@
 import AppKit
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A tab on screen whose page process keeps dying. It used to be loaded
 /// again every time, for ever — the page "refreshing itself" until Search

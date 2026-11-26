@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// The downloads card stands by the button that can be seen. With Settings ›
 /// Buttons at the top on, the column draws the doors at its foot as well as

@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Settings › Appearance › Tabs › Narrow to icons: off unless asked for;
 /// on, the column is never drawn under the line with titles, and pulled

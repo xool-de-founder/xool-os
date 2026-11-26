@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Apple Passwords (idea 260): the protocol pieces against synthetic vectors,
 /// and the client's whole flow against made-up helpers — one in memory, one

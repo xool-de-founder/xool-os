@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 @available(macOS 15.4, *)
 final class ExtensionWorkerLinkTests: XCTestCase {

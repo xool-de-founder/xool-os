@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// The switches on for everyone who never touched them (Drice, 25 Nov 2026):
 /// on with no line in the settings, off with a line saying off, and the

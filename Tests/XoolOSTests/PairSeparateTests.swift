@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A pair carried down the column comes apart only where that was shown
 /// (#883): the hand at rest over another tab dims the half that stays, and

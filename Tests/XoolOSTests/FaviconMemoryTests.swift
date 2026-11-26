@@ -1,7 +1,7 @@
 import AppKit
 import CryptoKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 @MainActor
 final class FaviconMemoryTests: XCTestCase {

@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A Firefox's or Zen's open tabs and tab groups, read from session stores
 /// written here by hand (see ImportGeckoTabs.swift). Only synthetic files in

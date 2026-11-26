@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Settings › Appearance › Tabs › Show the bookmarks bar in the sidebar:
 /// off unless asked for, only with the bar shown and the tabs down a side,

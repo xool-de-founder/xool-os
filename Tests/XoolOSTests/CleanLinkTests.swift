@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Copy Clean Link's rules on made-up addresses, and the bytes it copies,
 /// on a pasteboard of its own rather than the Mac's clipboard (#594).

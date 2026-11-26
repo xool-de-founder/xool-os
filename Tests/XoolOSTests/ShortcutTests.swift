@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 @MainActor
 final class ShortcutTests: XCTestCase {

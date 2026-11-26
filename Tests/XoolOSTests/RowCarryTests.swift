@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A tab carried down the column past a pair, which stands two lines tall:
 /// the row stays under the hand and passes the pair at its middle. Hosted

@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Same tabs in every window (Twins.swift): a row set against the twins,
 /// a row read from its file, the session file with and without twin ids,

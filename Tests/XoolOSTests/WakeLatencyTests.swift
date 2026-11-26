@@ -3,7 +3,7 @@ import Combine
 import Darwin
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Waking a sleeping tab: the page loads the moment its view is in a window,
 /// not on the next tick of a timer, and the picture of the old page comes off

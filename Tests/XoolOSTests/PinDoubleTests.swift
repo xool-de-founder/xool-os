@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A double-click on a pin's square (idea 1216), decided at its second
 /// press: the first press makes a pin you weren't on the one on screen,

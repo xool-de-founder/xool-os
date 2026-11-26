@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// "Use your Apple passwords?" under a sign-in box (Drice, 25 Oct 2026): off
 /// by default, offered once per site where Search keeps nothing, never again

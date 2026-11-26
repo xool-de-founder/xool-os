@@ -1,7 +1,7 @@
 import AppKit
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A video muted after it was heard, whose window goes out of sight — another
 /// desktop comes forward — is paused by WebKit, as every silent video nobody

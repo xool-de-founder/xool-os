@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Send links to a space (SpaceRoutes.swift): what a rule's site is, which
 /// rule an address meets, and that nothing is sent while it is off, with

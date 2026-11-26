@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// The address at rest on the tab you're on (AtRest.swift): the site it
 /// names, and how a look-alike name is shown.

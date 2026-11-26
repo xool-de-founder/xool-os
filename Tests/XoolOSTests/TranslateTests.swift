@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Translate Page's sentence marks and language checks (Translate.swift):
 /// pure functions, no page and no translator.

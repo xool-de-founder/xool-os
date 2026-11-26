@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Folders in pinned rows in a real window's model: made, filled, nested,
 /// folded, deleted, the row's order kept as drawn, and the column drawn off

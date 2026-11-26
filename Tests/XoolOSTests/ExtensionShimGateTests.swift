@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Which permission a shim call is checked against: `system.*` are each
 /// their own permission in Chrome, everything else is named by its first part.

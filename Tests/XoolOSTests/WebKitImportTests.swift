@@ -1,7 +1,7 @@
 import Foundation
 import XCTest
 import SQLite3
-@testable import Search
+@testable import XoolOS
 
 /// Orion's bookmarks and history, read from files written here in the shape
 /// Orion keeps them (see ImportWebKit.swift), in the test world's own Import

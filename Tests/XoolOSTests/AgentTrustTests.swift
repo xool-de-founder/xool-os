@@ -1,7 +1,7 @@
 import Foundation
 import Security
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// "Always allow" for a coding agent (AgentTrust): what is remembered is the
 /// code signature of the program that started the client, never the name it

@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A pin's ⌘ number pressed again on that pin goes back to the tab before
 /// it, with the switch on; with it off, nothing moves (idea 216).

@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Folders among the pinned rows (PinFolders.swift): the files staying
 /// readable both ways, what is drawn, what may go where, and Arc's nested

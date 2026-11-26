@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// The traffic lights stay where Lights puts them when one of them is moved
 /// back while they are being placed. A window manager that sizes the window

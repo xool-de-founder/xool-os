@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// History › Clear Browsing Data…, which asks for the clearing controls
 /// that live inside History (#749).

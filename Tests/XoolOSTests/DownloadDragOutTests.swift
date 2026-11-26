@@ -1,7 +1,7 @@
 import AppKit
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A finished download dragged out of the Downloads list (idea 566): the row
 /// carries its file, as a Finder file's drag does, and a page takes that

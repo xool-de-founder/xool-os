@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A tab carried over a page shows where letting go would split it, before
 /// the hand reaches an edge or stops: TabDrag says which page it is over

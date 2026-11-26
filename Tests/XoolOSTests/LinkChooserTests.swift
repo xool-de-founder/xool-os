@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// The model of the panel that asks which space a link opens in
 /// (LinkChooser.swift): its rows and their numbers, what it remembers, and

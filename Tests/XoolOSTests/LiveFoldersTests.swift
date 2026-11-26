@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Live folders (LiveFolders.swift): RSS and Atom read, a page's feed found,
 /// the folder kept in pin-folders.json and readable by what came before,

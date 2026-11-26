@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// The file has always kept 2,000 places; memory kept every one of the
 /// session, with its text and its prefix weights, and the address field

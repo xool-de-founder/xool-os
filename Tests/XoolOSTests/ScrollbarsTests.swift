@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Fade scroll bars when scrolling stops: on, AppKit — and through it WebKit —
 /// is told Search prefers overlay scroll bars; off, the Mac's own answer.

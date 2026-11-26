@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// The tabs Search closed by itself (Archive.swift): newest first, a month
 /// and five hundred at most, each profile's apart, and still there after

@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A tab carried out of its group and let go among the tabs in none leaves
 /// the group and lands there (#1009). Where it lands is worked out from the

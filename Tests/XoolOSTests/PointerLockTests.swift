@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Who may have the pointer (PointerLock, #1305). The whole path, a click
 /// in a page asking and Escape letting go, is Tests/pointer_lock.py.

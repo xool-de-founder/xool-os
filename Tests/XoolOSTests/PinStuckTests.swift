@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// #846: a square carried across the grid stayed floating mid-drag. SwiftUI
 /// calls a drag off, without onEnded, when what is carried changes under the

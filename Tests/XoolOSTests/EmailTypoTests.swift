@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// "Did you mean …?" under the news-by-email field (EmailTypo.swift): likely
 /// typos give the address they were meant to be, real addresses give

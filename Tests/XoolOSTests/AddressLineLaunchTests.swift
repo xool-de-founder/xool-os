@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// ⌘T and ⌘K come up over the page after the address line was clicked
 /// into (#1374). The click marks the field as the line's (inlineEdit), and

@@ -1,7 +1,7 @@
 import Foundation
 import XCTest
 import AppKit
-@testable import Search
+@testable import XoolOS
 
 /// Open tabs and tab groups read from a Chromium session file. The vectors
 /// below are written by hand in the test, field by field the way Chromium

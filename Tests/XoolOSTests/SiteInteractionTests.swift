@@ -1,6 +1,6 @@
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Search's own controls count as using the site, for tracking prevention
 /// (Store.interacted): what WebKit itself reads back says so.

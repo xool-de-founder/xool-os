@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// What an extension that runs can't do here, said in Settings and at
 /// install (Extensions.cantDo): requests it can't block (#1208), and

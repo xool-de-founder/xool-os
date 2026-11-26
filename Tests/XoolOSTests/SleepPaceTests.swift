@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// What each choice in Settings › Tabs › How soon tabs sleep waits for.
 final class SleepPaceTests: XCTestCase {

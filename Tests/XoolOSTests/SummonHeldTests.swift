@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// ⌘K pressed again with ⌘ still down walks the switcher's list; pressed
 /// afresh it puts the switcher away. Raised from the menu with the mouse, ⌘

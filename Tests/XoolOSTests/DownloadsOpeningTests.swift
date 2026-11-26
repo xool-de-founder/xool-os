@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Settings › Downloads › Open Downloads: a tab unless asked for, and each
 /// choice going where it says — the button closing what it opened, ⇧⌘J

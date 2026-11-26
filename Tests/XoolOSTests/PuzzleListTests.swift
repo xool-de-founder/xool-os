@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Idea 1021: with Buttons at the top on, the column draws the doors' row
 /// twice (up top and, hidden, at the foot). Both puzzles were bound to the

@@ -1,7 +1,7 @@
 import JavaScriptCore
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 @available(macOS 15.4, *)
 final class ExtensionWorkerPortTests: XCTestCase {

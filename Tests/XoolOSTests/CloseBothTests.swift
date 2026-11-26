@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Close Both Pages is remembered as one, as Close Tabs Below is: one ⇧⌘T
 /// brings both pages back as the pair they were. Closed one by one, ⇧⌘T

@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Which frames the password filling hears from (FormRelay): only a frame
 /// of the page's own scheme, host and port.

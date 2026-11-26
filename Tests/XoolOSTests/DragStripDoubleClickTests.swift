@@ -2,7 +2,7 @@ import AppKit
 import ObjectiveC
 import SwiftUI
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Double-clicking the top of the window zooms once instead of zooming and
 /// immediately bouncing back, and double-clicking empty tab-row space opens a

@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// The column as icons only (idea 413), with its own gestures: hosted in a
 /// borderless window far off every screen (as PinDragTests does), never

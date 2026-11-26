@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// ⌘Tab away from a page in full screen and back (FullScreenReturn): the
 /// window brought back is WebKit's full-screen window the app was left from,

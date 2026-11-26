@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// The right-click menu over a picture (idea 1208): WebKit's own hit test
 /// says whether the picture is also a link, and a link's items are never

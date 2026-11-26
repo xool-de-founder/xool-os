@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A split pinned as a split: Pin on one page pins every page, kept
 /// together in pins.json and in the row, put down whole by ⌘W, and let go

@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A space's colour washes the chrome behind the tabs; a space without one
 /// leaves it exactly as it was.

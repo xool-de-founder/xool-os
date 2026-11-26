@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 final class PasskeyPageOriginTests: XCTestCase {
     private func page(_ text: String) -> URL? { URL(string: text) }

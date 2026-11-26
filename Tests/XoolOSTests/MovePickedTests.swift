@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Several tabs picked in the column go into a group together (idea 1092),
 /// by the tab menu (Browser.move(_:toGroup:) with the picked tabs) or by a

@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 final class FuzzyTests: XCTestCase {
     private func nearly(_ typed: String, _ text: String) -> Bool {

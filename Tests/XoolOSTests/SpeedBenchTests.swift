@@ -2,7 +2,7 @@ import AppKit
 import Combine
 import SwiftUI
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Measures, not checks: how much each everyday change costs the window.
 /// Runs only when SPEED_OUT names a file, and writes what it measured there

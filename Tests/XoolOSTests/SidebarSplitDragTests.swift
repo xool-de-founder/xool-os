@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A tab carried from the column onto the page splits it again (#625 left
 /// it doing nothing): the press opens the tab, so the page under the hand

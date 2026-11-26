@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// What the browser keeps for extensions that listen for tab groups or for
 /// idleness (ExtensionWatch.swift): nothing at all while none does, and one

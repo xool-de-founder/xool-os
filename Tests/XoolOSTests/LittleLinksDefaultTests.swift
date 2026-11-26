@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Small windows for links are on for a new install and stay off for one
 /// from before (Preferences.settleLittleLinks), each in a settings suite of

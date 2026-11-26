@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// File › Export Spaces…: the bookmarks page any browser imports, and
 /// Search's own spaces file read back into the shape every spaces import

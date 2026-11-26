@@ -1,7 +1,7 @@
 import AppKit
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Settings › Tabs › Swipe back closes a tab a link opened: which tabs a
 /// swipe back from the first page closes, and where it lands.

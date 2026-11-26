@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Split View with three and four pages: a split is an ordered list of two
 /// to four, a page added beside another joins its split, a page closed

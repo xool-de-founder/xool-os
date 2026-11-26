@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Profiles in one window, in full screen (idea 670): a window ordered out
 /// in full screen keeps its full-screen space, so a profile switch must

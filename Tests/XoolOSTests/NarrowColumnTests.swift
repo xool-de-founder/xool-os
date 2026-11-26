@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// The column narrowed by its edge, from its usual width to the least, with
 /// a button per space and the fold door on and off (idea 1010): its rows

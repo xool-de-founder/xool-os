@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Keep the card in full screen (#1152): off, the page goes edge to edge
 /// when the window fills the screen (#607); on, it stays a card there too.

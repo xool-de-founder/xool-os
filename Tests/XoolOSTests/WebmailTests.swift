@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// mailto: links read as RFC 6068 has them, and the webmail compose pages
 /// made from them (Webmail.swift).

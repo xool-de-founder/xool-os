@@ -2,7 +2,7 @@ import AppKit
 import Combine
 import SwiftUI
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// The column's edge and the side panel's handle, pulled: what they move
 /// follows the pointer, and the setting is written once, when it is let go.

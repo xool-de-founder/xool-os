@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A pinned tab going between an extension's page and a website is swapped
 /// for a new tab (Browser.replace): it has to stay the same pin, at the same

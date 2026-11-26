@@ -1,7 +1,7 @@
 import AppKit
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Settings › Extensions › Runs on (#698): what is kept, how a host and its
 /// subdomains are matched, and what WebKit then injects where.

@@ -1,7 +1,7 @@
 import AppKit
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Which tab a page's notification names and a click on it brings forward
 /// (#776). Only the choice: what shows a tab and brings the app forward is never

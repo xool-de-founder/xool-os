@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A space's gradient (SpaceGradient.swift): kept beside its colour, read
 /// from lists that never had one, mixed in OKLab, held to the wash's

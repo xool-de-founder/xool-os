@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A window opened over a page gives the page the keys. Left with the
 /// window, the Mac's keyboard navigation hands them to the first button

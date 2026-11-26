@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Reader.twin and Reader.show run in a real web view against pages on a
 /// local http address: where a twin is found, and where it isn't.

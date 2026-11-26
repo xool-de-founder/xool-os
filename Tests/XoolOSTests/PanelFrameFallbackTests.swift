@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Which frames of an extension's panel get Claude's own fallback
 /// (PanelFrameFallback, idea 686): claude.ai's /cic pages and nothing else.

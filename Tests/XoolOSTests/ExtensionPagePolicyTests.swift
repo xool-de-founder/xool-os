@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A Manifest V3 extension's pages' policy, as preparing a package leaves it:
 /// held to Chrome's minimum. What its pages then run is

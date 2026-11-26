@@ -1,6 +1,6 @@
 import JavaScriptCore
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// The shim's tab group and idle events (chrome.tabGroups.onCreated/
 /// onRemoved/onUpdated, chrome.idle.onStateChanged) come from the browser,

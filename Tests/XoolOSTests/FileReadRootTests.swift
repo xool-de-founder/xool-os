@@ -1,6 +1,6 @@
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// How far up a page opened from disk may read (#1342): two folders, never
 /// the home folder or a folder directly in it, however the path is spelled.

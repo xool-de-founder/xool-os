@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// What an extension's own script refused by a page's policy may be
 /// (ExtensionPageScript): which path, for which page, and what runs.

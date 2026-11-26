@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Settings read again while Search runs (Preferences.reread): only the look
 /// and layout of the tabs, the sidebar and the window, read the way launch

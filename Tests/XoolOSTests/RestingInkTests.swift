@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// The doors (the puzzle, Bookmarks, Back, Forward, Reload) and a tab's
 /// letter rest in the ground's own grey, as the tab titles beside them do:

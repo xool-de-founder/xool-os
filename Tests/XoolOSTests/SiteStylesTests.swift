@@ -2,7 +2,7 @@ import AppKit
 import JavaScriptCore
 import SwiftUI
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 @MainActor
 final class SiteStylesTests: XCTestCase {

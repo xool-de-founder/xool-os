@@ -1,7 +1,7 @@
 import AppKit
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// The top of the window: what the menu bar's reveal in full screen pushes
 /// the bars down by (idea 926), and the band along the top of a page leaving

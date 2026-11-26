@@ -1,6 +1,6 @@
 import Combine
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Idea 781: on a Mac whose helper macOS stops as it starts, Connect… pressed
 /// again and again must leave the Settings row as it is.

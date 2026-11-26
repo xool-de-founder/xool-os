@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 final class MarkdownTests: XCTestCase {
     private let base = URL(string: "https://docs.example.test/guide/start.md")

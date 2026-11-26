@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// ⌥⌘N splits the page on screen, and on a pair puts it apart: the key that
 /// made the split takes it away, as ⌘T, ⌘L and ⌘K each put away what they

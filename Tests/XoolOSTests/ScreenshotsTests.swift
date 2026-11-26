@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// The Mac's screenshots in Downloads (Screenshots.swift): which files count,
 /// where the Mac saves them, and only new ones listed.

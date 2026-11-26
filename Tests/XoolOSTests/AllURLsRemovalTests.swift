@@ -1,7 +1,7 @@
 import AppKit
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// <all_urls>, once given, may be held as *://*/* (Extensions.fence),
 /// so giving it back must take both: permissions.remove reaches

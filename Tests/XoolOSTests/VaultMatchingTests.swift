@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// Unlike VaultAndUpdaterTests, this one does touch the keychain, under the
 /// label a test run keeps for itself, and forgets what it saved.

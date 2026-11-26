@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// The column folded with ⌘S, the window away from the screen's left edge
 /// (another app beside it): a hand flung at the edge goes from the page to

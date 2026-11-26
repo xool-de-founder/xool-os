@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// The empty page of a pair finds open tabs by what is typed: its list of
 /// six goes once typing starts, and the field offered only places, so a tab

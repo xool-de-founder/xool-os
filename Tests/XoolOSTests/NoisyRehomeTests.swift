@@ -1,7 +1,7 @@
 import AppKit
 import WebKit
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A tab whose page is let go of stops saying it plays sound: the speaker
 /// went with the view, and a tab still "playing sound" never sleeps.

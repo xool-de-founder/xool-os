@@ -1,5 +1,5 @@
 import XCTest
-@testable import Search
+@testable import XoolOS
 
 /// A declarativeNetRequest redirect to an extension's own page (Norma's
 /// block page): the target WebKit hands over, and who may go there.

@@ -43,7 +43,7 @@ final class ModelStore: ObservableObject {
 
     /// Cloud providers with a key kept: their default model is offered, and
     /// the model field in Settings › AI can name another.
-    private func cloudEntries() -> [Entry] {
+    func cloudEntries() -> [Entry] {
         [AIProvider.anthropic, .openAI, .gemini, .openRouter].compactMap { provider in
             guard AIKeys.hint(for: provider) != nil else { return nil }
             let chosen = ((Store.settings.dictionary(forKey: "ai.models") as? [String: String])?[provider.rawValue] ?? "")

@@ -54,7 +54,9 @@ enum DecisionModel {
         let timer = Task { try? await Task.sleep(nanoseconds: timeout); reading.cancel() }
         let said = await reading.value
         timer.cancel()
-        return parse(said) ?? .standard
+        let result = parse(said) ?? .standard
+        if Store.testing { FileHandle.standardError.write(Data("decision: tools=\(result.needsTools) cloud=\(result.preferCloud) decided=\(result.decided) via=\(choice.model)\n".utf8)) }
+        return result
     }
 
     /// The first {...} in the answer; thinking models wrap it in words.

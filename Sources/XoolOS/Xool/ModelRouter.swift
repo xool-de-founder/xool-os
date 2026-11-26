@@ -95,7 +95,7 @@ final class ModelRouter: ObservableObject {
         guard allowCloud else { return nil }
         let preferred = [agent?.model, configured(.agent), configured(.chat)].compactMap { $0 }
         if let hit = preferred.first(where: { !$0.isLocal && usable($0) }) { return hit }
-        return ModelStore.shared.cloud.first(where: { usable($0.choice) })?.choice
+        return ModelStore.shared.cloudEntries().first(where: { usable($0.choice) })?.choice
     }
 
     struct Route: Equatable {

@@ -104,9 +104,23 @@ extension XoolUI {
             case "agents": showAgents = true
             case "tabs": showTabs = true
             case "models": showModels = true
+            case "settings":
+                Browsers.frontBrowser.settingsPage = SettingsPanel.Page.named(pieces.count > 1 ? pieces[1] : "models") ?? .models
+                Browsers.frontBrowser.tuning = true
             case "new": editing = nil; showNewAgent = true
             case "sidebar": mode = .sidebar
             case "floating": mode = .floating
+            // Test runs only (SEARCH_PROBE): a stand-in provider, a made-up key,
+            // a chosen model, the cloud switch. Same rules as bench's ai verbs.
+            case "mock" where Store.testing:
+                if let url = pieces.count > 1 ? URL(string: pieces[1]) : nil, ["127.0.0.1", "localhost"].contains(url.host() ?? "") { AIProvider.mock = url }
+            case "key" where Store.testing:
+                let k = (pieces.count > 1 ? pieces[1] : "").split(separator: "=", maxSplits: 1).map(String.init)
+                if k.count == 2, let provider = AIProvider(rawValue: k[0]) { _ = AIKeys.save(k[1], for: provider) }
+            case "choose" where Store.testing:
+                let k = (pieces.count > 1 ? pieces[1] : "").split(separator: "=", maxSplits: 1).map(String.init)
+                if k.count == 2 { ModelStore.shared.current = ModelChoice(provider: k[0], model: k[1]) }
+            case "cloud" where Store.testing: ModelRouter.shared.allowCloud = pieces.count > 1 && pieces[1] == "on"
             case "light": NSApp.appearance = NSAppearance(named: .aqua)
             case "dark": NSApp.appearance = NSAppearance(named: .darkAqua)
             default: break

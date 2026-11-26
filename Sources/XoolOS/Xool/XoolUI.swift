@@ -133,6 +133,7 @@ extension XoolUI {
             case "stopafter" where Store.testing:
                 let seconds = Double(pieces.count > 1 ? pieces[1] : "") ?? 10
                 DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { [weak self] in
+                    FileHandle.standardError.write(Data("stopafter: fired, front=\(String(describing: self?.front))\n".utf8))
                     if let id = self?.front { ChatRuntime.shared.stop(id) }
                 }
             case "cloud" where Store.testing: ModelRouter.shared.allowCloud = pieces.count > 1 && pieces[1] == "on"

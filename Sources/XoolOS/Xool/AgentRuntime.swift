@@ -68,8 +68,12 @@ final class AgentRuntime {
         }
         let run = AgentRun(threadID: threadID, agent: agent, session: session, skills: skills)
         runs[threadID] = run
+        // A run goes on while you work in another app: no App Nap, which
+        // would stretch every page load and timer.
+        let awake = ProcessInfo.processInfo.beginActivity(options: [.userInitiated, .idleSystemSleepDisabled], reason: "\(agent.name) is working in the browser")
         chat.setActivity(threadID, .thinking)
         defer {
+            ProcessInfo.processInfo.endActivity(awake)
             AgentControl.shared.finish(session)
             runs[threadID] = nil
             resolve(threadID, .deny)

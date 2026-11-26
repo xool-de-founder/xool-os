@@ -125,9 +125,17 @@ final class ChatRuntime: ObservableObject {
     }
 
     func stop(_ threadID: UUID) {
+        let running = thinking.contains(threadID)
         tasks[threadID]?.cancel()
         AgentRuntime.shared.cancel(threadID)
-        finish(threadID, error: nil, provider: nil)
+        finish(threadID, error: nil, provider: nil, quiet: true)
+        guard running else { AgentStore.shared.saveNow(); return }
+        AgentStore.shared.mutate(threadID) {
+            if let last = $0.messages.indices.last, $0.messages[last].role == .assistant, $0.messages[last].failed == nil {
+                $0.messages[last].failed = "Stopped."
+            }
+        }
+        AgentStore.shared.saveNow()
     }
 
     private func finish(_ id: UUID, error: Error?, provider: AIProvider?, quiet: Bool = false) {

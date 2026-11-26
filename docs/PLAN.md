@@ -304,3 +304,11 @@ Unendliche Fläche (Rahmen, Formen, Text, Bilder, Verbindungen, Zoom/Pan) wie Fi
 - Name/Bundle-ID final (`com.xool.os`?) und Signier-Team.
 - Ob Search-Sync (iCloud) später mit eigenem Container zurückkommt.
 - Lizenz der Voice-Modelle (Piper-Stimmen) für die Weitergabe im Bundle prüfen.
+
+---
+
+## Stand Phase 3 (2026-11-26)
+
+Umgesetzt: `AgentRuntime` (Tool-Loop, Streaming, Stop), Tool-Calls im OpenAI-Format (Ollama, LM Studio, OpenAI, OpenRouter) und als Anthropic `tool_use`; Browser-Tools intern über `AgentControl` (`AgentControl.call`, kein Socket); `web_search` (DuckDuckGo-HTML oder `XOOL_SEARXNG`); Skills (`~/Library/Application Support/Xool/skills/<name>/SKILL.md`, `/` im Thread); Schritt-Protokoll mit Sprung zum Tab; Ring und Sidebar-Abschnitt „Agents“; Domain-Erlaubnis pro Agent (`AgentDomainTrust`); Pill-Zustände. Belege: `docs/shots/p3-*.png` (echter Lauf gegen Ollama).
+
+Nicht getestet: Anthropic-/OpenAI-Tools ohne echten Key, LM Studio, Gemini (läuft als Chat ohne Tools), XCTest. Offen: farbiger Zeiger auf der Webseite, Tool-Calls für Gemini.

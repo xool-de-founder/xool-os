@@ -83,6 +83,25 @@ class TurnDetector:
     def in_speech(self) -> bool:
         return self._speaking
 
+    @property
+    def silence_seconds(self) -> float:
+        """How long it has been quiet since the last speech (0 when not in a turn)."""
+        return self._silence_run * CHUNK_SEC if self._speaking else 0.0
+
+    @property
+    def spoken_seconds(self) -> float:
+        return len(self._audio) * CHUNK_SEC if self._speaking else 0.0
+
+    def audio_so_far(self) -> np.ndarray:
+        return np.concatenate(self._audio) if self._audio else np.zeros(0, np.int16)
+
+    def start_with(self, chunks: list) -> None:
+        """A turn that began before we were sure (barge-in): start it with these chunks."""
+        self.reset()
+        self._speaking = True
+        self._audio = list(chunks)
+        self._silence_run = 0
+
     def feed(self, prob: float, chunk: np.ndarray, threshold: float | None = None,
              min_speech_chunks: int | None = None) -> TurnEvent | None:
         thr = self.threshold if threshold is None else threshold

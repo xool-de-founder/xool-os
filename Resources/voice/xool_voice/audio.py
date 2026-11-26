@@ -32,6 +32,7 @@ class Player:
         self._segments: deque[list] = deque()  # [audio, pos, on_start]
         self._lock = threading.Lock()
         self.last_sound = 0.0
+        self.level = 0.0  # RMS of what was last sent to the speakers (for the echo gate)
         self._stream = sd.OutputStream(
             samplerate=sample_rate, channels=1, dtype="float32",
             callback=self._callback, device=device, latency="low", blocksize=0,
@@ -61,6 +62,9 @@ class Player:
             out[filled:] = 0.0
         if filled:
             self.last_sound = time.monotonic()
+            self.level = float(np.sqrt(np.mean(out[:filled] ** 2)))
+        else:
+            self.level = 0.0
 
     def play(self, audio: np.ndarray, on_start: Callable[[], None] | None = None) -> None:
         if len(audio) == 0:

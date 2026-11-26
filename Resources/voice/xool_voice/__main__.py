@@ -17,7 +17,13 @@ def main(argv=None) -> int:
     p.add_argument("--whisper")
     p.add_argument("--language", default="de", help="what you speak (Whisper language code)")
     p.add_argument("--speed", type=float, default=1.05)
-    p.add_argument("--pause", type=float, default=0.6)
+    p.add_argument("--pause", type=float, default=0.5)
+    p.add_argument("--name", default="Jarvis", help="the assistant's name (for \"was I addressed?\")")
+    p.add_argument("--record", action="store_true", help="tests: keep what would be played (save_out)")
+    p.add_argument("--fake-mic", action="store_true", help="tests: no microphone, WAV files via feed")
+    p.add_argument("--echo-gain", type=float, default=0.0, help="tests: how much of the voice the fake microphone hears")
+    p.add_argument("--cache-dir")
+    p.add_argument("--wake", action="store_true")
     p.add_argument("--say")
     p.add_argument("--out")
     p.add_argument("--transcribe")
@@ -58,7 +64,8 @@ def main(argv=None) -> int:
     if a.serve:
         from .server import Server
 
-        Server(a.voice, a.whisper, a.speed, a.pause, a.null_audio, language=a.language).run()
+        Server(a.voice, a.whisper, a.speed, a.pause, a.null_audio, name=a.name, language=a.language, record=a.record,
+               fake_mic=a.fake_mic, echo_gain=a.echo_gain, cache_dir=a.cache_dir, wake=a.wake).run()
         return 0
     p.print_help()
     return 2

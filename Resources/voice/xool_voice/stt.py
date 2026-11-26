@@ -9,7 +9,7 @@ import numpy as np
 
 DEFAULT_MLX_MODEL = "mlx-community/whisper-large-v3-turbo"
 DEFAULT_FW_MODEL = "large-v3-turbo"
-PROMPT = "Hallo. Das ist ein Gespräch auf Deutsch."
+PROMPT = "Hallo Jarvis. Das ist ein Gespräch auf Deutsch. Jarvis, such im Internet. Öffne die Seite."
 
 
 def is_apple_silicon() -> bool:

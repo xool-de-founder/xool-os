@@ -42,6 +42,10 @@ mv "$APP/Contents/MacOS/$EXECUTABLE.sdk" "$APP/Contents/MacOS/$EXECUTABLE"
 cp Xool.sdef "$APP/Contents/Resources/"
 # The one-command setup (Settings > Models > Set up local AI runs it).
 cp scripts/xool-setup.sh "$APP/Contents/Resources/"
+# Resources/canvas is the built Canvas (TipTap block editor + surface engine),
+# checked in; rebuild it from web/canvas with web/canvas/build.sh (needs Node,
+# only for that: this script needs none).
+[ -f Resources/canvas/index.html ] || { echo "Resources/canvas is missing: run web/canvas/build.sh"; exit 1; }
 [ -d Resources ] && cp -R Resources/. "$APP/Contents/Resources/" || true
 find "$APP/Contents/Resources" -name __pycache__ -prune -exec rm -rf {} + 2>/dev/null || true
 

@@ -143,7 +143,27 @@ extension XoolUI {
                         guard let view = Browsers.frontBrowser.window?.contentView,
                               let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
                         view.cacheDisplay(in: view.bounds, to: rep)
-                        try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: k[1]))
+                        let out = URL(fileURLWithPath: k[1])
+                        // A web view (the canvas) does not draw into cacheDisplay: its own snapshot is laid over.
+                        let webs = CanvasHosts.shared.live.values.map(\.webView).filter { $0.window === view.window && !$0.isHiddenOrHasHiddenAncestor }
+                        guard let web = webs.first else {
+                            try? rep.representation(using: .png, properties: [:])?.write(to: out)
+                            return
+                        }
+                        web.takeSnapshot(with: nil) { image, _ in
+                            let base = NSImage(size: view.bounds.size)
+                            base.addRepresentation(rep)
+                            let frame = view.convert(web.bounds, from: web)
+                            let y = view.isFlipped ? view.bounds.height - frame.maxY : frame.minY
+                            let composed = NSImage(size: view.bounds.size, flipped: false) { _ in
+                                base.draw(in: NSRect(origin: .zero, size: view.bounds.size))
+                                image?.draw(in: NSRect(x: frame.minX, y: y, width: frame.width, height: frame.height))
+                                return true
+                            }
+                            if let tiff = composed.tiffRepresentation, let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                                try? png.write(to: out)
+                            }
+                        }
                     }
                 }
             case "brainlog" where Store.testing || getenv("XOOL_PROFILE") != nil:

@@ -68,6 +68,8 @@ export class Engine {
   private spaceDown = false
   private saveTimer = 0
   private commitTimer = 0
+  /** Set once the person has moved the view or the content by hand: no more fitting on its own. */
+  private touched = false
 
   onTool: (tool: Tool) => void = () => {}
   onZoom: (z: number) => void = () => {}
@@ -96,12 +98,17 @@ export class Engine {
 
   load(raw: string | null) {
     this.endEdit(false)
+    this.touched = false
     let doc: Partial<Doc> = {}
     try { doc = raw ? JSON.parse(raw) : {} } catch { doc = {} }
     this.title = doc.title || 'Untitled canvas'
     this.reset(Array.isArray(doc.elements) ? doc.elements : [])
     if (doc.view && isFinite(doc.view.z)) this.view = { ...doc.view }
-    else this.fit()
+    else {
+      this.fit()
+      // The page may not have its size yet: once more when it has.
+      requestAnimationFrame(() => requestAnimationFrame(() => { if (!this.touched) this.fit() }))
+    }
     this.applyView()
     this.render()
   }
@@ -136,6 +143,7 @@ export class Engine {
   }
 
   private push() {
+    this.touched = true
     const snap = this.snapshot()
     if (snap !== this.history[this.at]) {
       this.history = this.history.slice(0, this.at + 1)
@@ -197,6 +205,7 @@ export class Engine {
   }
 
   setZoom(z: number, around?: Point) {
+    this.touched = true
     const rect = this.stage.getBoundingClientRect()
     const cx = around ? around.x : rect.width / 2
     const cy = around ? around.y : rect.height / 2
@@ -738,6 +747,7 @@ export class Engine {
     const p = this.toWorld(e.clientX, e.clientY)
     switch (g.kind) {
       case 'pan':
+        this.touched = true
         this.view.x = g.vx + (e.clientX - g.sx)
         this.view.y = g.vy + (e.clientY - g.sy)
         this.applyView()
@@ -922,6 +932,7 @@ export class Engine {
       const k = Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.004))
       this.setZoom(this.view.z * k, { x: e.clientX - rect.left, y: e.clientY - rect.top })
     } else {
+      this.touched = true
       this.view.x -= e.deltaX
       this.view.y -= e.deltaY
       this.applyView()

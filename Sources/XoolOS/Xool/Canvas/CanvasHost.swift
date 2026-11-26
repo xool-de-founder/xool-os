@@ -37,7 +37,7 @@ final class CanvasHosts {
 
 /// One canvas page: the web view, the bridge to it and the files it asks for.
 @MainActor
-final class CanvasController: NSObject, WKScriptMessageHandler, WKURLSchemeHandler, WKNavigationDelegate {
+final class CanvasController: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     let id: String
     let webView: WKWebView
     private var ready = false
@@ -54,9 +54,10 @@ final class CanvasController: NSObject, WKScriptMessageHandler, WKURLSchemeHandl
         let user = WKUserContentController()
         config.userContentController = user
         config.preferences.javaScriptCanOpenWindowsAutomatically = false
+        // Before the view is made: it takes a copy of the configuration.
+        config.setURLSchemeHandler(CanvasFiles(), forURLScheme: CanvasStore.scheme)
         webView = WKWebView(frame: .zero, configuration: config)
         super.init()
-        config.setURLSchemeHandler(self, forURLScheme: CanvasStore.scheme)
         user.add(WeakHandler(self), name: "xool")
         webView.navigationDelegate = self
         webView.setValue(false, forKey: "drawsBackground")
@@ -167,9 +168,30 @@ final class CanvasController: NSObject, WKScriptMessageHandler, WKURLSchemeHandl
         }
     }
 
-    // MARK: the page's files
+    // A link is never followed inside the canvas: it opens as a tab of the browser.
+    func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        if action.request.url?.scheme == CanvasStore.scheme { decisionHandler(.allow); return }
+        decisionHandler(.cancel)
+        if let url = action.request.url, ["http", "https"].contains(url.scheme ?? "") { Browsers.acting.open(url, foreground: true) }
+    }
 
-    nonisolated func webView(_ webView: WKWebView, start task: WKURLSchemeTask) {
+    // MARK: leaving the screen
+
+    func scheduleEviction() {
+        flush()
+        eviction?.cancel()
+        let work = DispatchWorkItem { [id] in CanvasHosts.shared.evict(id) }
+        eviction = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 45, execute: work)
+    }
+
+    func cancelEviction() { eviction?.cancel(); eviction = nil }
+}
+
+/// The page's files: the bundle at `xool-canvas://app/<file>`, a document's pictures at
+/// `xool-canvas://asset/<id>/<file>`. Nothing else is served, and nothing goes to the network.
+final class CanvasFiles: NSObject, WKURLSchemeHandler {
+    func webView(_ webView: WKWebView, start task: WKURLSchemeTask) {
         guard let url = task.request.url else { task.didFailWithError(URLError(.badURL)); return }
         // `xool-canvas://app/<file>`: the bundle; `xool-canvas://asset/<id>/<file>`: a picture of a document.
         let host = url.host() ?? ""
@@ -198,26 +220,8 @@ final class CanvasController: NSObject, WKScriptMessageHandler, WKURLSchemeHandl
         task.didFinish()
     }
 
-    nonisolated func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {}
+    func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {}
 
-    // A link is never followed inside the canvas: it opens as a tab of the browser.
-    func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-        if action.request.url?.scheme == CanvasStore.scheme { decisionHandler(.allow); return }
-        decisionHandler(.cancel)
-        if let url = action.request.url, ["http", "https"].contains(url.scheme ?? "") { Browsers.acting.open(url, foreground: true) }
-    }
-
-    // MARK: leaving the screen
-
-    func scheduleEviction() {
-        flush()
-        eviction?.cancel()
-        let work = DispatchWorkItem { [id] in CanvasHosts.shared.evict(id) }
-        eviction = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 45, execute: work)
-    }
-
-    func cancelEviction() { eviction?.cancel(); eviction = nil }
 }
 
 /// A message handler that does not keep its controller alive.

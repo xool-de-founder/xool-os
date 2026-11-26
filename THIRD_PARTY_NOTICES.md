@@ -377,3 +377,41 @@ process in its own Python environment; it is not linked into the app. The
 licence of the Piper voices for redistribution inside the bundle is still to
 be checked (docs/PLAN.md, open points), which is why the voice is downloaded
 at setup time.
+
+## Canvas (web/canvas, built into Resources/canvas)
+
+The block editor of the Canvas bundles these packages (all MIT licensed, run
+without network, versions pinned in web/canvas/package-lock.json):
+
+- **TipTap** (`@tiptap/core`, `starter-kit`, `suggestion`, `html`, `extension-image`,
+  `extension-placeholder`, `extension-table`, `extension-task-list`,
+  `extension-task-item`, `pm`), Copyright (c) Tiptap GmbH. <https://tiptap.dev>
+- **ProseMirror** (`prosemirror-*`, `orderedmap`, `rope-sequence`, `w3c-keyname`),
+  Copyright (c) Marijn Haverbeke and others. <https://prosemirror.net>
+- `linkifyjs` and the other small MIT packages TipTap depends on (the full
+  list is in web/canvas/package-lock.json; `entities`, BSD-2-Clause, is a
+  development dependency and not part of the bundle).
+
+Build tools (not shipped): esbuild (MIT), TypeScript (Apache-2.0).
+
+```
+MIT License
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```

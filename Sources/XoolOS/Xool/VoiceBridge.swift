@@ -147,8 +147,8 @@ final class VoiceBridge: ObservableObject {
 
     /// What the model is told about its own ears and mouth.
     var abilities: String {
-        "You can hear and speak. The user talks to you with the microphone (the waveform button in your office, the key ⌥⌘J, "
-        + "Conversation mode) and you answer aloud; text that arrives from dictation is their speech. "
+        "You can hear and speak. The user talks to you with the microphone (Live: it stays open and what they say reaches you "
+        + "at the end of each sentence; or the key ⌥⌘J) and you answer aloud with your own voice; spoken text arrives like typed text. "
         + "Never say that you can't receive speech or answer aloud. "
         + (SidecarEngine.installed
            ? "Your own voice (Whisper and Piper, on this Mac) is set up."

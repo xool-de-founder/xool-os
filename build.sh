@@ -162,6 +162,14 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-# Ad-hoc signed: enough to run on the machine that built it.
-codesign --force --deep --sign - --entitlements Xool.entitlements "$APP"
-echo "built: $APP ($VERSION, $ARCH, build $BUILD)"
+# Ad-hoc signed: enough to run on the machine that built it. With a certificate of your own in the keychain
+# (XOOL_SIGN_ID="Name of the certificate") the signature stays the same from build to build, and macOS keeps
+# the microphone approval.
+SIGN_ID="${XOOL_SIGN_ID:--}"
+codesign --force --deep --sign "$SIGN_ID" --entitlements Xool.entitlements "$APP"
+echo "built: $APP ($VERSION, $ARCH, build $BUILD, signed: $([ "$SIGN_ID" = "-" ] && echo "ad hoc" || echo "$SIGN_ID"))"
+if [ "$SIGN_ID" = "-" ]; then
+  echo "note: an ad-hoc signature is new with every build, so macOS forgets the microphone approval."
+  echo "      After copying the app to /Applications run:  tccutil reset Microphone com.xool.os"
+  echo "      then start it and allow the microphone once (or set XOOL_SIGN_ID to a local certificate)."
+fi

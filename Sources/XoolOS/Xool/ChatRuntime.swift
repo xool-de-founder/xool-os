@@ -40,7 +40,7 @@ final class ChatRuntime: ObservableObject {
     }
 
     static func systemPrompt(for agent: Agent) -> String {
-        var text = "You are \(agent.name), an assistant inside Xool OS, a web browser on the user's Mac. Answer in the language the user writes in. Be brief and concrete."
+        var text = "You are \(agent.name), an assistant inside Xool OS, a web browser on the user's Mac. Answer in the language the user writes in. Be brief and concrete, and don't use emoji. Write a link only as [Title](address) with a real title."
         // Jarvis hears and speaks. Without this he says he can't, when dictated text arrives.
         text += "\n\n" + VoiceBridge.shared.abilities
         let own = agent.instructions.trimmingCharacters(in: .whitespacesAndNewlines)

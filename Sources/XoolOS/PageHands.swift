@@ -382,6 +382,52 @@ enum PageScripts {
     }
 
 
+    /// The page's first visible video or audio: "play", "pause", "fullscreen" or "status". Answers its state;
+    /// for "fullscreen" also where YouTube's own button is, in case the script's own request is refused.
+    static func media(_ action: String) -> String {
+        call(#"""
+        (function (action) {
+          function box(e) { return e.getBoundingClientRect(); }
+          var all = [].slice.call(document.querySelectorAll('video,audio'));
+          var m = all.filter(function (v) { var r = box(v); return r.width > 60 && r.height > 40; })[0] || all[0];
+          if (!m) return JSON.stringify({ error: 'no_media', message: 'There is no video or audio on this page. Open one first.' });
+          var out = {};
+          function fs() { return document.fullscreenElement || document.webkitFullscreenElement; }
+          if (action === 'play') {
+            try { var p = m.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+          } else if (action === 'pause') {
+            try { m.pause(); } catch (e) {}
+          } else if (action === 'fullscreen' && !fs()) {
+            var host = document.querySelector('#movie_player') || m.parentElement || m;
+            try { var f = host.requestFullscreen || host.webkitRequestFullscreen; if (f) { var q = f.call(host); if (q && q.catch) q.catch(function () {}); } } catch (e) {}
+            var b = document.querySelector('.ytp-fullscreen-button');
+            if (b) { var r = box(b); out.at = [r.left + r.width / 2, r.top + r.height / 2]; }
+          }
+          out.paused = m.paused; out.time = Math.round(m.currentTime);
+          out.duration = isFinite(m.duration) ? Math.round(m.duration) : null;
+          out.muted = m.muted; out.ended = m.ended; out.fullscreen = !!fs();
+          out.ad = !!document.querySelector('.ad-showing');
+          out.title = document.title;
+          return JSON.stringify(out);
+        })
+        """#, [action])
+    }
+
+    /// The centre of the first element a CSS selector finds, scrolled into view; fields are refused.
+    static func clickPoint(selector: String) -> String {
+        call(#"""
+        (function (sel) {
+          var e; try { e = document.querySelector(sel); } catch (x) { return JSON.stringify({ error: 'bad_selector', message: 'Not a CSS selector' }); }
+          if (!e) return JSON.stringify({ error: 'no_element', message: 'Nothing on the page matches that selector' });
+          if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.tagName)) return JSON.stringify({ error: 'field', message: 'That is a field: use browser_type' });
+          e.scrollIntoView({ block: 'center', inline: 'center' });
+          var r = e.getBoundingClientRect();
+          return JSON.stringify({ at: [r.left + r.width / 2, r.top + r.height / 2],
+            label: String(e.innerText || e.getAttribute('aria-label') || e.tagName).slice(0, 60) });
+        })
+        """#, [selector])
+    }
+
     /// The page scrolled by so many CSS pixels, or to its "top" or "bottom".
     static func scroll(dx: Double, dy: Double, to end: String?) -> String {
         call(#"""

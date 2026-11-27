@@ -13,6 +13,8 @@ final class AgentRun {
     var allSites = false
     /// Element handle → what it is called on the page, from the last reads.
     var labels: [String: String] = [:]
+    /// The page the run opened or used last: where "play" goes when no page is named.
+    var lastPage: String?
 
     init(threadID: UUID, agent: Agent, session: AgentSession, skills: [Skill]) {
         self.threadID = threadID
@@ -46,13 +48,22 @@ enum AgentTools {
             ToolSpec(name: "web_search", detail: "Search the web. Returns titles, addresses and snippets.",
                      parameters: schema(["query": string("What to search for"),
                                          "count": ["type": "integer", "description": "How many results, 1 to 10 (default 6)"]], required: ["query"])),
-            ToolSpec(name: "browser_open", detail: "Open an address in a new tab of your own, which the user sees. Returns the page handle (p1, p2 …).",
+            ToolSpec(name: "browser_open", detail: "Open an address in a tab of your own, which the user sees (a tab of yours already on that site is reused, not opened again). Returns the page handle (p1, p2 …).",
                      parameters: schema(["url": string("An http or https address")], required: ["url"])),
             ToolSpec(name: "browser_read_page", detail: "Read a page: its text and its links, buttons and fields, each with an element id for click and type.",
                      parameters: schema(["page": string("Page handle from browser_open, such as p1"),
                                          "max_chars": ["type": "integer", "description": "How much text, up to 12000 (default 4000)"]], required: ["page"])),
-            ToolSpec(name: "browser_click", detail: "Click an element from the last browser_read_page of that page.",
-                     parameters: schema(["element": string("Element id such as p1.s1.e12")], required: ["element"])),
+            ToolSpec(name: "browser_click", detail: "Click something on a page of yours: an element id from the last browser_read_page, or the words on it (`text`, with `page`), or a CSS `selector` (with `page`).",
+                     parameters: schema(["element": string("Element id such as p1.s1.e12"),
+                                         "text": string("The visible words of a link or button, instead of an element id"),
+                                         "selector": string("A CSS selector, instead of an element id"),
+                                         "page": string("Page handle, for text or selector")], required: [])),
+            ToolSpec(name: "media_play", detail: "Start the video or audio on a page of yours (the first one on it, such as a YouTube video). It really plays, nothing for the user to click. Returns whether it plays.",
+                     parameters: schema(["page": string("Page handle (default: the page you used last)")], required: [])),
+            ToolSpec(name: "media_pause", detail: "Pause the video or audio on a page of yours.",
+                     parameters: schema(["page": string("Page handle (default: the page you used last)")], required: [])),
+            ToolSpec(name: "media_fullscreen", detail: "Show the video on a page of yours full screen. It really does it, nothing for the user to click.",
+                     parameters: schema(["page": string("Page handle (default: the page you used last)")], required: [])),
             ToolSpec(name: "browser_type", detail: "Type into a text field from the last browser_read_page. Never for passwords, card numbers or one-time codes.",
                      parameters: schema(["element": string("Element id such as p1.s1.e4"), "text": string("What to type"),
                                          "submit": ["type": "boolean", "description": "Submit the form afterwards"]], required: ["element", "text"])),
@@ -108,6 +119,12 @@ enum AgentTools {
             let url = args["url"] as? String ?? ""
             return (.open, "Opens \(AgentRules.address(url).flatMap { AgentDomainTrust.host($0) } ?? short(url))")
         case "browser_read_page": return (.read, "Reads \(title(of: args["page"] as? String, run: run))")
+        case "media_play": return (.click, "Plays the video")
+        case "media_pause": return (.click, "Pauses the video")
+        case "media_fullscreen": return (.click, "Shows the video full screen")
+        case "browser_click" where (args["element"] as? String ?? "").isEmpty:
+            let what = (args["text"] as? String) ?? (args["selector"] as? String) ?? "an element"
+            return (.click, "Clicks “\(short(what, 40))”")
         case "browser_click":
             let element = args["element"] as? String ?? ""
             return (.click, "Clicks \(run.labels[element].map { "“\(short($0, 40))”" } ?? "an element")")
@@ -178,9 +195,18 @@ enum AgentTools {
             guard await AgentRuntime.shared.allow(host: host, run: run) else {
                 return fail("The user didn't allow \(host). Try another source.")
             }
-            let out = await control.call("open", ["url": url.absoluteString, "timeout": 20], in: run.session)
+            // A tab of its own already on this site is used again: YouTube, a shop, a mail page open once, not ten times.
+            var verb = "open"
+            var request: [String: Any] = ["url": url.absoluteString, "timeout": 20]
+            if let existing = control.tabs(of: run.session).first(where: { AgentDomainTrust.host($0.address) == host }),
+               let known = control.handle(of: existing, in: run.session) {
+                verb = "go"
+                request["page"] = known
+            }
+            let out = await control.call(verb, request, in: run.session)
             if let failed = refusal(out) { return failed }
             let handle = out["page"] as? String ?? ""
+            run.lastPage = handle
             let tab = control.tab(for: ["page": handle], in: run.session)
             if let tab {
                 AgentRuntime.shared.reveal(tab, in: run)
@@ -188,17 +214,65 @@ enum AgentTools {
             }
             let name = (out["title"] as? String) ?? ""
             let loading = out["timeout"] as? Bool == true ? " (still loading)" : ""
-            return ToolOutcome(text: "Opened \(handle): \(name) — \(out["url"] as? String ?? "")\(loading). Use browser_read_page with page \(handle).",
+            return ToolOutcome(text: "\(verb == "go" ? "Went to the tab you already had on this site" : "Opened") \(handle): \(name) — \(out["url"] as? String ?? "")\(loading). Use browser_read_page with page \(handle).",
                                tab: tab?.id, url: out["url"] as? String)
 
         case "browser_read_page":
             let page = args["page"] as? String ?? ""
+            run.lastPage = page
             if let denied = await allowed(["page": page]) { return denied }
             let longest = min(max(args["max_chars"] as? Int ?? 4000, 500), 12000)
             let out = await control.call("read", ["page": page, "max_nodes": 150, "max_text": longest], in: run.session)
             if let failed = refusal(out) { return failed }
             let tab = control.tab(for: ["page": page], in: run.session)
             return ToolOutcome(text: format(out, run: run, longest: longest), tab: tab?.id, url: out["url"] as? String)
+
+        case "browser_click" where (args["element"] as? String ?? "").isEmpty:
+            let page = (args["page"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? run.lastPage ?? ""
+            if let denied = await allowed(["page": page]) { return denied }
+            run.lastPage = page
+            let tab = control.tab(for: ["page": page], in: run.session)
+            var out: [String: Any]
+            if let selector = args["selector"] as? String, !selector.isEmpty {
+                out = await control.call("click_css", ["page": page, "selector": selector], in: run.session)
+            } else if let wanted = (args["text"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !wanted.isEmpty {
+                // By its words: the element of the last read of that page whose name has them.
+                let found = run.labels.filter { $0.key.hasPrefix(page + ".") && $0.value.lowercased().contains(wanted) }
+                    .min { $0.value.count < $1.value.count }
+                guard let found else {
+                    return fail("No element named “\(wanted)” in the last read of \(page). Call browser_read_page, then click by its id.")
+                }
+                out = await control.call("click", ["element": found.key], in: run.session)
+            } else {
+                return fail("Give an element id, the words on the element, or a selector")
+            }
+            if let failed = refusal(out) { return failed }
+            if let tab, let denied = await landing(tab, run: run) { return denied }
+            return ToolOutcome(text: "Clicked. \(out["navigated"] as? Bool == true ? "The tab went to \(out["title"] as? String ?? "") — \(out["url"] as? String ?? ""). Read the page again." : "The page may have changed: read it again.")",
+                               tab: tab?.id, url: out["url"] as? String)
+
+        case "media_play", "media_pause", "media_fullscreen":
+            let page = (args["page"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? run.lastPage ?? ""
+            guard !page.isEmpty else { return fail("Open a page first with browser_open") }
+            if let denied = await allowed(["page": page]) { return denied }
+            run.lastPage = page
+            let action = String(call.name.dropFirst("media_".count))
+            let out = await control.call("media", ["page": page, "action": action], in: run.session)
+            if let failed = refusal(out) { return failed }
+            let tab = control.tab(for: ["page": page], in: run.session)
+            let playing = out["paused"] as? Bool == false
+            var text = "\(playing ? "It plays" : "It is paused")\(out["fullscreen"] as? Bool == true ? " and is full screen" : "")"
+            if let time = out["time"] as? Int { text += " (at \(time) s\((out["duration"] as? Int).map { " of \($0) s" } ?? ""))" }
+            text += "."
+            if out["ad"] as? Bool == true { text += " An ad is showing first: click “Skip” with browser_click when the button appears." }
+            switch action {
+            case "play" where !playing:
+                return ToolOutcome(text: text + " It did not start. Try browser_click on the player or its play button.", failed: true, tab: tab?.id, url: tab?.address?.absoluteString)
+            case "fullscreen" where out["fullscreen"] as? Bool != true:
+                return ToolOutcome(text: text + " It is not full screen yet. Try browser_click on the player's full-screen button.", failed: true, tab: tab?.id, url: tab?.address?.absoluteString)
+            default: break
+            }
+            return ToolOutcome(text: text, tab: tab?.id, url: tab?.address?.absoluteString)
 
         case "browser_click":
             let element = args["element"] as? String ?? ""

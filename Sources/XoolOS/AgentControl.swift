@@ -1156,6 +1156,10 @@ final class AgentControl: ObservableObject {
                 try read(request, session, browser, answer)
             case "click":
                 try click(request, session, browser, answer)
+            case "media":
+                try media(request, session, browser, answer)
+            case "click_css":
+                try clickCSS(request, session, browser, answer)
             case "type":
                 try type(request, session, browser, answer)
             case "press":
@@ -1363,6 +1367,82 @@ final class AgentControl: ObservableObject {
                     self.settle(tab, session, timeout: request["timeout"] as? Double ?? 10) { out in
                         var out = out
                         out["page"] = page
+                        out["navigated"] = tab.address != before
+                        answer(out)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Play, pause or enlarge the video or audio on a tab of its own (the first visible one). The play call comes
+    /// from the app, so the site's autoplay rule doesn't hold it back; fullscreen is asked for in the page and,
+    /// if the page refuses, done with a real click on the player's own button.
+    private func media(_ request: [String: Any], _ session: AgentSession, _ browser: Browser, _ answer: @escaping ([String: Any]) -> Void) throws {
+        let tab = try self.tab(request, session, browser, .drive)
+        let action = request["action"] as? String ?? "status"
+        guard ["play", "pause", "fullscreen", "status"].contains(action) else {
+            throw AgentRefusal(code: "bad_action", message: "Media actions are play, pause, fullscreen and status")
+        }
+        let page = request["page"] as? String ?? ""
+        // The tab is shown (and so has a real size and a window) before it plays or goes full screen.
+        if action != "status" { browser.select(tab); browser.window?.makeKeyAndOrderFront(nil) }
+        func finish(_ extra: [String: Any]) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { [weak self] in
+                guard let self else { return }
+                self.page(tab, session, PageScripts.media("status")) { result in
+                    switch result {
+                    case .failure(let refusal): answer(refusal.said)
+                    case .success(var state): state["page"] = page; state["action"] = action; answer(state.merging(extra) { a, _ in a })
+                    }
+                }
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + (action == "fullscreen" || action == "play" ? 0.4 : 0)) { [weak self] in
+            guard let self else { return }
+            self.page(tab, session, PageScripts.media(action)) { [weak self] result in
+                guard let self else { return }
+                switch result {
+                case .failure(let refusal): answer(refusal.said)
+                case .success(let seen):
+                    guard self.live(session) else { return answer(AgentRefusal(code: "stopped", message: "Stopped in Xool OS").said) }
+                    if action == "fullscreen", seen["fullscreen"] as? Bool != true, let at = seen["at"] as? [Double] {
+                        // The page took the script's request as not from you: a click on its own button is.
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                            guard let self else { return }
+                            self.page(tab, session, PageScripts.media("status")) { check in
+                                if case .success(let state) = check, state["fullscreen"] as? Bool == true { finish([:]) }
+                                else { PageHands.click(tab.web, at: at); finish(["clicked": true]) }
+                            }
+                        }
+                    } else {
+                        finish([:])
+                    }
+                }
+            }
+        }
+    }
+
+    /// A click on the first element a CSS selector finds.
+    private func clickCSS(_ request: [String: Any], _ session: AgentSession, _ browser: Browser, _ answer: @escaping ([String: Any]) -> Void) throws {
+        let tab = try self.tab(request, session, browser, .drive)
+        let before = tab.address
+        let page = request["page"] as? String ?? ""
+        self.page(tab, session, PageScripts.clickPoint(selector: String((request["selector"] as? String ?? "").prefix(300)))) { [weak self] result in
+            guard let self else { return }
+            switch result {
+            case .failure(let refusal): answer(refusal.said)
+            case .success(let seen):
+                guard self.live(session) else { return answer(AgentRefusal(code: "stopped", message: "Stopped in Xool OS").said) }
+                guard let at = seen["at"] as? [Double], PageHands.click(tab.web, at: at) else {
+                    answer(AgentRefusal(code: "not_clicked", message: "The page had nowhere to click").said)
+                    return
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    self.settle(tab, session, timeout: request["timeout"] as? Double ?? 10) { out in
+                        var out = out
+                        out["page"] = page
+                        out["label"] = seen["label"]
                         out["navigated"] = tab.address != before
                         answer(out)
                     }

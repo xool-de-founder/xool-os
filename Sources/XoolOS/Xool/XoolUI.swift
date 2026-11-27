@@ -133,6 +133,10 @@ extension XoolUI {
                 if index < agents.count { openAgent(agents[index].id) }
             case "send":
                 if let id = front, pieces.count > 1 { ChatRuntime.shared.send(pieces[1], in: id) }
+            // Test runs: `typed:<seconds>|<text>` is a message typed into the front thread after a while, as the field does it.
+            case "typed" where Store.testing || getenv("XOOL_PROFILE") != nil:
+                let k = (pieces.count > 1 ? pieces[1] : "").split(separator: "|", maxSplits: 1).map(String.init)
+                if k.count == 2 { DispatchQueue.main.asyncAfter(deadline: .now() + (Double(k[0]) ?? 5)) { [weak self] in if let id = self?.front { VoiceBridge.shared.typed(k[1], in: id) } } }
             case "agents": showAgents = true
             // Test and profile runs only: the overview toggled after n seconds
             // (a picture sequence of the flight), and ⌘T's new tab.

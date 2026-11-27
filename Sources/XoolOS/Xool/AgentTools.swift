@@ -263,7 +263,8 @@ enum AgentTools {
             let playing = out["paused"] as? Bool == false
             var text = "\(playing ? "It plays" : "It is paused")\(out["fullscreen"] as? Bool == true ? " and is full screen" : "")"
             if let time = out["time"] as? Int { text += " (at \(time) s\((out["duration"] as? Int).map { " of \($0) s" } ?? ""))" }
-            text += "."
+            text += (out["how"] as? String).map { " (done by: \($0))." } ?? "."
+            VoiceBridge.log("media \(action): \(text)")
             if out["ad"] as? Bool == true { text += " An ad is showing first: click “Skip” with browser_click when the button appears." }
             switch action {
             case "play" where !playing:

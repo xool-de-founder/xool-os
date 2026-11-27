@@ -653,3 +653,37 @@ Vorher: ältere Kopie aus `/Applications` beenden und die App aus `build/Xool OS
 10. **Abschied:** „Tschüss“ → kurze Abschiedsphrase, die Sitzung schließt (danach braucht er wieder seinen Namen).
 11. **Stimme fehlt (optional):** `~/Library/Application Support/Xool/voice` umbenennen, App neu starten → das Büro zeigt „Voice not set up“ und die Karte. Jarvis antwortet auf Sprache trotzdem hörbar mit der Mac-Stimme (Push-to-Talk). Danach den Ordner zurückbenennen.
 12. **Gefühl:** Die Brücke wirkt sofort, Antworten brechen nicht mitten im Wort ab, nichts wird doppelt gesagt, keine Phrase wiederholt sich in kurzer Folge. Auffälliges bitte mit Uhrzeit notieren.
+
+## Stand Phase 10 (2026-11-27)
+
+**Ursache B (nichts zu hören).** Der Sidecar lief und konnte sprechen (Piper-Test über `sounddevice` auf dem Mac-Lautsprecher: Stream aktiv, kein Fehler). Gesprochen wurde aber nur bei einem *gesprochenen* Turn (`VoiceBridge.accept`). Der Wellenform-Knopf im Thread diktierte Text ins Eingabefeld, der Nutzer schickte ihn als getippte Nachricht ab, und getippte Nachrichten gingen an `ChatRuntime.send` ohne Sprech-Sitzung: **die Antwort wurde nie an den Sidecar gegeben.** Zweiter Faktor: es gab kein Log, und das Ausgabegerät ist beim Start des Sidecars festgelegt (hier waren `CMF Buds Pro 2` und ein LG-Monitor als Geräte da; PortAudio nimmt das Standardgerät des Starts). Jetzt: jede Antwort wird gesprochen, solange Live an ist (auch getippte Fragen), und `~/Library/Logs/Xool/voice.log` nennt Sprecher und Mikrofon beim Start. Einen Fehler im echten Profil konnte ich nicht nachstellen: das alte Profil hatte kein Log.
+
+Umgesetzt (Layout-Vertrag 8.1 unverändert, UI-Texte englisch):
+
+- **A Live.** Schalter „Live“ im Thread-Kopf, Wellenform im Eingabefeld (schaltet Live, diktiert nicht mehr), Wellenform im Büro, `⌥⌘J` kurz. Öffnet man Jarvis' Thread und ist die Stimme eingerichtet, startet Live von selbst (Einstellung „Live starts with Jarvis' thread“, Standard an); verlässt man den Thread, schließt das Mikrofon. Von Hand beendetes Live startet erst beim nächsten Öffnen wieder. Der Sidecar schickt alle ~0,45 s `partial` (Whisper über die Sprache bis dahin), der Thread zeigt eine gestrichelte **Live-Blase** mit dem Teiltext. Am Satzende (Pause 0,5 s) wird daraus die Nutzer-Nachricht und geht ohne Klick an Jarvis. „Gemeint?“-Entscheidung, Sitzung, Barge-in und Brücken unverändert. Push-to-Talk (`fn` halten) bleibt versteckt. Ohne Stimme bleibt im Eingabefeld das alte Diktat.
+- **B Hörbar.** „Read replies aloud“ (Standard an): bei Live wird jede Jarvis-Antwort gesprochen, auch auf getippte Fragen (sprachtauglich geschrieben, `clean_for_speech` entfernt Markdown, URLs und Emoji). Büro: „Test voice“ und „Show voice log“ (auch in den Einstellungen). Log: Sidecar-Start, Geräte, Ereignisse, Sätze, Medien-Tools, Fehler; Rotation bei 1,5 MB.
+- **C Mikrofon.** Sidecar zeigt Stille an: liefert macOS einem Kindprozess ohne Freigabe Nullen statt eines Fehlers, meldet er nach 2 s „only delivers silence“ mit „Open Settings“. Meldung bei Ablehnung nennt das neue Fragen nach einem Update. `build.sh` sagt am Ende, dass die Freigabe nach jedem ad-hoc-Build neu gilt (`tccutil reset Microphone com.xool.os`); `XOOL_SIGN_ID="<Zertifikat>"` signiert stabil statt ad hoc.
+- **D Browser macht es.** `media_play`, `media_pause`, `media_fullscreen`, `browser_click` per `text` oder `selector`; `browser_open` benutzt einen vorhandenen Agent-Tab derselben Seite (`go`); Prompt: nie „kann ich nicht“, nie nur ankündigen; der „nur angekündigt“-Schutz gilt auch im Text-Chat und fängt auch „kann ich nicht / musst du selbst klicken“ ab (einmal). Wiedergabe kommt aus der App (zählt für Autoplay als Nutzeraktion). Vollbild: erst der Aufruf im Seitenkontext, dann echter Klick auf YouTubes Vollbild-Knopf, dann die Taste F, zuletzt das Fenster-Vollbild; das Tool meldet ehrlich „nicht Vollbild“, wenn nichts davon klappt.
+- **E Markdown.** `ChatText`: fett, kursiv, Listen, Überschriften, Code, Zitate; Links als klickbarer Titel (nackte Adresse → Domainname), öffnen im Browser; keine Emojis bei Jarvis; Prompt: kurz, keine Emojis, Links nur als `[Titel](Adresse)`.
+
+**Belege** (Release-Build, Profil „shots“, WAV als Mikrofon, Ausgang als WAV aufgenommen; Protokolle in `docs/voice-e2e/p10-*`):
+
+1. Live mit WAV: Teiltext erscheint beim Sprechen (`partial` 8× im Log, Bild `docs/shots/p10-live-hearing.png`), Satzende → Nachricht → Antwort ohne Klick (`p10-live-answer.png`), Brücke nach 23 ms, Antwort gesprochen (`p10-live-out.wav`, 24 s).
+2. Getippte Frage bei Live → gesprochen: Ausgangs-WAV, von Whisper zurückgelesen: „Die Hauptstadt von Italien ist Rom.“ (`p10-typed-out.wav`, `p10-typed.log`).
+3. Echtes YouTube im Agent-Tab (Big Buck Bunny): „Öffne … spiel das Video ab und mach Vollbild.“ → Schritte „Plays the video“, „Shows the video full screen“, Log `It plays and is full screen (at 5 s of 635 s)`; Bild `p10-youtube-fullscreen.png` (Element-Vollbild, Video läuft). Ein erster Lauf scheiterte, weil nur der Seitenaufruf versucht wurde (Tool meldete ehrlich „not full screen“, das Modell behauptete trotzdem Erfolg): danach die Klick-/Tasten-/Fenster-Kette.
+4. Markdown: `p10-markdown.png` (fette Namen als Liste, kein rohes `**`).
+
+**Nicht geprüft.** Echtes Mikrofon (auch ob die Freigabe der App an den Sidecar als Kindprozess vererbt wird), echter Lautsprecher (nur WAV-Aufnahme des Ausgangs und ein Piper-Test ohne Hörprobe), Bluetooth-Geräte (Wechsel des Ausgabegeräts nach dem Start des Sidecars wird nicht verfolgt: Sidecar neu starten), Links im Thread in der echten Anzeige (Parser gebaut, im Bild nur fette Liste), Weg über Siri/Intent mit Live.
+
+### Checkliste für den echten Mikrofon-Test (Nutzer)
+
+Vorher: App aus `/Applications` starten; beim ersten Live fragt macOS nach dem Mikrofon: **Erlauben**. Fragt es nicht und Jarvis hört nichts: Büro → „Show voice log“ ansehen („only silence“ = Freigabe fehlt, dann `tccutil reset Microphone com.xool.os`, App neu starten).
+
+1. **Büro:** „Test voice“ drücken → Jarvis spricht einen Satz. Nichts zu hören? „Show voice log“: Zeile `sidecar ready … speaker …` nennt das Gerät. Ist es nicht das gewünschte, Ausgabegerät in macOS ändern und die App neu starten.
+2. **Live startet allein:** Jarvis' Thread öffnen → Kopf zeigt „Live“ mit Punkt, unten „Live. Just talk“.
+3. **Teiltext:** „Jarvis, wie heißt die Hauptstadt von Frankreich?“ sagen → gestrichelte Blase wächst mit, am Satzende wird sie zur Nachricht, Antwort kommt ohne Klick und wird gesprochen.
+4. **Getippt:** Frage ins Feld tippen, Return → Antwort wird trotzdem gesprochen.
+5. **Unterbrechen:** langen Text anfordern, dazwischenreden (mit Kopfhörern und Lautsprechern prüfen).
+6. **Video:** „Such auf YouTube Lionel Messi Highlights, spiel das erste Video ab und mach Vollbild.“ → ein Agent-Tab, Video läuft, Vollbild; kein „kann ich nicht“.
+7. **Anzeige:** Antworten mit fetten Wörtern/Listen/Links ohne `**`, Links als Titel, keine Emojis.
+8. **Ausschalten:** Wellenform oder „Live“ klicken → Mikrofon zu; Thread schließen → Mikrofon zu. Einstellungen › Voice: „Live starts with Jarvis' thread“, „Read replies aloud“.

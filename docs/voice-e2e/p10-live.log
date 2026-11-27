@@ -1,0 +1,47 @@
+2026-11-27T06:03:21 starting the sidecar: /Users/hxh91txg0q/Library/Application Support/Xool/voice/venv/bin/python -m xool_voice --serve --language de --name Jarvis --pause 0.5 --record --fake-mic --echo-gain 0.15
+2026-11-27T06:03:21 live on (Jarvis)
+2026-11-27T06:03:22 sidecar bridges ["cached": 323, "ev": bridges, "count": 323]
+2026-11-27T06:03:22 sidecar ready: voice de_DE-thorsten-high, speaker EDIFIER QR65, microphone CMF Buds Pro 2
+2026-11-27T06:03:22 event ready("de_DE-thorsten-high")
+2026-11-27T06:03:22 event loading("ears")
+2026-11-27T06:03:23 sidecar: Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]
+2026-11-27T06:03:23 sidecar: Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00, 3172.10it/s]
+2026-11-27T06:03:23 event warm
+2026-11-27T06:03:34 event speechStart
+2026-11-27T06:03:35 event partial("Jarvis?")
+2026-11-27T06:03:35 event partial("Jarvis, wie heißt...")
+2026-11-27T06:03:36 event partial("Jarvis, wie heißt die Hauptstadt?")
+2026-11-27T06:03:37 event partial("Jarvis, wie heißt die Hauptstadt von Frank?")
+2026-11-27T06:03:37 event partial("Jarvis, wie heißt die Hauptstadt von Frankreich und wie?")
+2026-11-27T06:03:38 event partial("Jarvis, wie heißt die Hauptstadt von Frankreich und wie viele Einwohner sind es?")
+2026-11-27T06:03:39 event partial("Jarvis, wie heißt die Hauptstadt von Frankreich und wie viele Einwohner hat sie untertitelt?")
+2026-11-27T06:03:39 event partial("Jarvis, wie heißt die Hauptstadt von Frankreich und wie viele Einwohner hat sie ungefähr?")
+2026-11-27T06:03:40 event transcript("Jarvis, wie heißt die Hauptstadt von Frankreich und wie viele Einwohner hat sie ungefähr?", XoolOS.Heard(kind: "websuche", route: "web", tools: true, named: true, ms: 259))
+2026-11-27T06:03:40 agent run starts (qwen3.5:27b)
+2026-11-27T06:03:40 bridge websuche after 16 ms
+2026-11-27T06:03:40 sidecar sound ["ev": sound, "kind": bridge, "ms": 18]
+2026-11-27T06:03:40 event bridge("Ich werf mal eine Suche an.")
+2026-11-27T06:03:40 event speaking(true)
+2026-11-27T06:03:40 sidecar barge_in ["ev": barge_in, "ms_total": 400, "ms_stop": 0]
+2026-11-27T06:03:40 event bargeIn
+2026-11-27T06:03:40 event speaking(false)
+2026-11-27T06:03:40 event idle
+2026-11-27T06:03:40 event speechStart
+2026-11-27T06:04:16 sidecar: Exception ignored in: <function Wave_write.__del__ at 0x10871f1a0>
+2026-11-27T06:04:16 sidecar: Traceback (most recent call last):
+2026-11-27T06:04:16 sidecar:   File "/Users/hxh91txg0q/.local/share/uv/python/cpython-3.12.16-macos-aarch64-none/lib/python3.12/wave.py", line 465, in __del__
+2026-11-27T06:04:16 sidecar:     self.close()
+2026-11-27T06:04:16 sidecar:   File "/Users/hxh91txg0q/.local/share/uv/python/cpython-3.12.16-macos-aarch64-none/lib/python3.12/wave.py", line 582, in close
+2026-11-27T06:04:16 sidecar:     if self._file:
+2026-11-27T06:04:16 sidecar:        ^^^^^^
+2026-11-27T06:04:16 sidecar: ^^^^
+2026-11-27T06:04:16 sidecar: AttributeError: 'Wave_write' object has no attribute '_file'
+2026-11-27T06:04:16 event error("Bad command: [Errno 2] No such file or directory: \'docs/voice-e2e/p10-live-out.wav\'", mic: false, fatal: false)
+2026-11-27T06:04:25 event speaking(true)
+2026-11-27T06:04:26 sidecar sound ["kind": say, "ev": sound, "ms": 46322]
+2026-11-27T06:04:27 sidecar barge_in ["ms_total": 400, "ev": barge_in, "ms_stop": 0]
+2026-11-27T06:04:27 event bargeIn
+2026-11-27T06:04:27 event speaking(false)
+2026-11-27T06:04:27 event idle
+2026-11-27T06:04:27 event speechStart
+2026-11-27T06:04:53 live off

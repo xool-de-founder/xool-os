@@ -110,6 +110,7 @@ struct ThreadView: View {
                     }
                     .overlay(RoundedRectangle(cornerRadius: Theme.Radius.row, style: .continuous).strokeBorder(Theme.line))
                 }
+                liveBubble(thread)
             }
             .padding(Theme.Space.l)
             .frame(maxWidth: .infinity, alignment: .leading)

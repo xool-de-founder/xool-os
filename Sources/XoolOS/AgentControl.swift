@@ -1393,7 +1393,7 @@ final class AgentControl: ObservableObject {
                 self.page(tab, session, PageScripts.media("status")) { result in
                     switch result {
                     case .failure(let refusal): answer(refusal.said)
-                    case .success(var state): state["page"] = page; state["action"] = action; answer(state.merging(extra) { a, _ in a })
+                    case .success(var state): state["page"] = page; state["action"] = action; answer(state.merging(extra) { _, new in new })
                     }
                 }
             }
@@ -1406,15 +1406,27 @@ final class AgentControl: ObservableObject {
                 case .failure(let refusal): answer(refusal.said)
                 case .success(let seen):
                     guard self.live(session) else { return answer(AgentRefusal(code: "stopped", message: "Stopped in Xool OS").said) }
-                    if action == "fullscreen", seen["fullscreen"] as? Bool != true, let at = seen["at"] as? [Double] {
-                        // The page took the script's request as not from you: a click on its own button is.
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                            guard let self else { return }
+                    if action == "fullscreen", seen["fullscreen"] as? Bool != true {
+                        // The page took the script's request as not from you. Real input is: first a click on the player's own
+                        // button, then the key F (YouTube's shortcut), then the window itself.
+                        let at = seen["at"] as? [Double]
+                        var steps: [(String, @MainActor () -> Void)] = []
+                        if let at { steps.append(("button", { PageHands.click(tab.web, at: at) })) }
+                        steps.append(("key", { PageHands.key(tab.web, code: 3, characters: "f", flags: []) }))
+                        steps.append(("window", { if browser.window?.styleMask.contains(.fullScreen) != true { browser.window?.toggleFullScreen(nil) } }))
+                        let list = steps
+                        @MainActor func attempt(_ index: Int) {
                             self.page(tab, session, PageScripts.media("status")) { check in
-                                if case .success(let state) = check, state["fullscreen"] as? Bool == true { finish([:]) }
-                                else { PageHands.click(tab.web, at: at); finish(["clicked": true]) }
+                                let window = browser.window?.styleMask.contains(.fullScreen) == true
+                                if case .success(let state) = check, state["fullscreen"] as? Bool == true || window {
+                                    return finish(["how": index == 0 ? "page" : list[index - 1].0, "fullscreen": true])
+                                }
+                                guard index < list.count else { return finish([:]) }
+                                list[index].1()
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { attempt(index + 1) }
                             }
                         }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { attempt(0) }
                     } else {
                         finish([:])
                     }

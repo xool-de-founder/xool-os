@@ -1,0 +1,18 @@
+2026-11-27T06:09:14 starting the sidecar: /Users/hxh91txg0q/Library/Application Support/Xool/voice/venv/bin/python -m xool_voice --serve --language de --name Jarvis --pause 0.5 --record --fake-mic --echo-gain 0.15
+2026-11-27T06:09:14 live on (Jarvis)
+2026-11-27T06:09:14 sidecar bridges ["count": 323, "ev": bridges, "cached": 323]
+2026-11-27T06:09:14 sidecar ready: voice de_DE-thorsten-high, speaker EDIFIER QR65, microphone CMF Buds Pro 2
+2026-11-27T06:09:14 event ready("de_DE-thorsten-high")
+2026-11-27T06:09:14 event loading("ears")
+2026-11-27T06:09:16 sidecar: Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]
+2026-11-27T06:09:16 sidecar: Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00, 3643.26it/s]
+2026-11-27T06:09:16 event warm
+2026-11-27T06:09:28 typed message, the answer will be spoken
+2026-11-27T06:09:28 agent run starts (qwen3.5:27b)
+2026-11-27T06:09:38 agent first token
+2026-11-27T06:09:38 agent round done: 0 call(s)
+2026-11-27T06:09:38 event speaking(true)
+2026-11-27T06:09:38 sidecar sound ["kind": say, "ev": sound, "ms": <null>]
+2026-11-27T06:09:40 event speaking(false)
+2026-11-27T06:09:40 event idle
+2026-11-27T06:10:06 sidecar saved ["ev": saved, "path": /Users/hxh91txg0q/Projekte/Desktop-Apps/macOS/xool-os/docs/voice-e2e/p10-typed-out.wav, "seconds": 2.05]

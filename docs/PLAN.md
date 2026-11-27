@@ -435,6 +435,66 @@ Anlass: Test nach Phase 8. Diktat kommt als Text im Jarvis-Thread an, Jarvis ant
 
 ---
 
+### Phase 10 – Live-Gespräch wie im Terminal, Jarvis hörbar, Browser macht es wirklich
+
+Nutzer-Feedback nach Phase 9 (2026-11-27, Bilder `docs/review/p10-jarvis-thread-1.webp`, `p10-jarvis-thread-2.webp`):
+
+- Push-to-Talk und der Wellenform-Knopf, der Text ins Eingabefeld diktiert, sind **nicht** gewollt. Er musste den Text danach selbst abschicken.
+- Er hat **keine Stimme gehört**. Gewollt ist die deutsche Piper-Stimme wie bei jarvis-on-nod.
+- Vorbild ist das Terminal von jarvis-on-nod (`bash <(curl -fsSL https://raw.githubusercontent.com/Paulito12209/jarvis-on-nod/main/scripts/jarvis-stimme.sh)`): Er startet es, Jarvis hört sofort zu, man unterhält sich wie im echten Leben. Das soll hier im Chat passieren, und er sieht live, was Jarvis von ihm hört.
+- Aus den Bildern:
+  - Antworten zeigen rohes Markdown (`**…**`, `[YouTube](https://…)`) und Emojis.
+  - Jarvis sagt, er könne ein Video nicht abspielen oder auf Vollbild stellen. Er kündigt „Ich öffne es jetzt“ an, öffnet youtube.com mehrfach neu und spielt nichts ab.
+
+**A. Live-Modus statt Push-to-Talk.**
+- Ein Schalter „Live“ (im Jarvis-Thread-Kopf und im Büro, `⌥⌘J` kurz) öffnet das Mikrofon dauerhaft.
+- Ist der Jarvis-Thread offen und die Stimme eingerichtet, startet Live von selbst (Einstellung, Standard an).
+- Während er spricht, steht unten im Thread eine **Live-Blase mit dem laufenden Teiltext** (Streaming-Transkript, alle ~300–500 ms aktualisiert). Am Satzende wird sie zur normalen Nutzer-Nachricht und geht **ohne Klick** an Jarvis.
+- Kein Absenden, keine Taste pro Satz. Das Eingabefeld bleibt fürs Tippen.
+- Der Wellenform-Knopf im Eingabefeld schaltet Live an und aus. Er diktiert nicht mehr ins Feld.
+- Push-to-Talk bleibt nur als versteckte Option (fn halten), nicht als Hauptweg.
+- Sitzung, „gemeint?“-Entscheidung, Barge-in und Brücken aus Phase 9 bleiben.
+- Vorher `jarvis-stimme.sh` und den Ablauf in jarvis-on-nod lesen (Repo klonen, nicht ausführen) und das Verhalten nachbauen: Zuhören, Teiltext, Pausenlänge, Unterbrechen.
+
+**B. Jarvis ist hörbar.**
+- Diagnose zuerst, warum im echten Profil nichts zu hören war: Läuft der Sidecar? Startet die Ausgabe? Richtiges Ausgabegerät? Gibt es Fehler im Log?
+- Ein Log nach `~/Library/Logs/Xool/voice.log` schreiben, im Büro „Show voice log“.
+- Ist Live an, wird **jede** Jarvis-Antwort mit der deutschen Piper-Stimme gesprochen, auch getippte Fragen. Einstellung „Read replies aloud“, Standard an.
+- Sprechen ist Satz für Satz. Der gesprochene Text ist ohne Markdown, URLs und Emojis.
+- Im Büro ein Knopf „Test voice“, der einen Satz spricht.
+
+**C. Mikrofon-Rechte verlässlich.**
+- Die App ist ad-hoc signiert, macOS vergisst die Freigabe nach jedem Build.
+- Prüfen, ob der Sidecar als Kindprozess das Mikrofon bekommt.
+- Klare Meldung im Büro mit „Open Settings“ und dem Hinweis, dass nach einem neuen Build einmal neu erlaubt werden muss. `build.sh` sagt das beim Kopieren nach /Applications.
+- Optional: stabile Signatur mit einem selbst erzeugten lokalen Zertifikat, wenn eins im Schlüsselbund liegt (`XOOL_SIGN_ID`). Sonst ad-hoc wie bisher.
+
+**D. Browser-Steuerung, die es wirklich tut.**
+- Agent-Tools:
+  - `media_play` / `media_pause`: erstes sichtbares `<video>`/`<audio>`, YouTube-Player;
+  - `media_fullscreen`: Vollbild des Videos bzw. Fenster-Vollbild;
+  - `click(text|selector)`, falls noch nicht vorhanden.
+- Autoplay erlauben, wenn ein Agent die Wiedergabe auslöst (`mediaTypesRequiringUserActionForPlayback` für Agent-Tabs bzw. Wiedergabe per JS mit Nutzer-Geste der App).
+- Den bestehenden Tab wiederverwenden statt youtube.com neu zu öffnen.
+- Prompt: Jarvis behauptet nie, etwas nicht zu können, was ein Tool kann. Er tut es, statt es anzukündigen. Der Schutz „nur angekündigt“ aus Phase 9 gilt auch im Text-Chat.
+- Beleg: „Spiel das erste Video ab und mach Vollbild“ → Video läuft, Vollbild.
+
+**E. Antworten sauber anzeigen.**
+- Der Thread rendert Markdown: fett, Listen, Links als klickbarer Titel statt roher URL.
+- Kein rohes `**` oder `[..](..)` mehr sichtbar.
+- Jarvis' Stil: kurz, keine Emojis, Links nur als Titel.
+
+**Fertig, wenn:**
+- Im echten Profil: Jarvis-Thread öffnen → Live läuft → Sprechen erscheint live als Teiltext → Satzende → Antwort ohne Klick → Antwort hörbar mit der Piper-Stimme.
+- „Spiel das erste Video ab und mach Vollbild“ funktioniert im Agent-Tab.
+- Markdown ist gerendert.
+- Automatisiert belegt (WAV als Mikrofon, Ausgangs-WAV aufgenommen, Screenshots `docs/shots/p10-*`).
+- Neue Mikrofon-Checkliste in der Status-Notiz.
+- Release-Build grün, nach `/Applications` kopiert und gestartet, committet und gepusht.
+- Layout-Vertrag 8.1 bleibt (Live-Blase und Schalter nur im Thread und im Büro).
+
+---
+
 ## 7. Qualitätsboden (gilt für jede Phase)
 
 - Kontrast ≥ 4.5:1 für Text, Fokusring immer sichtbar, alle Icon-Knöpfe mit Accessibility-Label.

@@ -235,8 +235,23 @@ struct VoiceSettingsCard: View {
                 Switch(on: $entry.menuBar)
             }
             Rule()
-            Line("Conversation", "⌥⌘J pressed briefly, or the waveform in Jarvis' office: the microphone stays open and you needn't press a key per sentence") {
+            Line("Live", "⌥⌘J pressed briefly, the Live button in a thread or the waveform in Jarvis' office: the microphone stays open, you see what he hears, and the sentence goes to him by itself") {
                 Pill(voice.conversing ? "End" : "Start", filled: !voice.conversing) { VoiceBridge.shared.toggleConversation() }
+            }
+            Rule()
+            Line("Live starts with Jarvis' thread", "Opening his thread turns the microphone on; leaving it turns it off") {
+                Switch(on: $voice.autoLive)
+            }
+            Rule()
+            Line("Read replies aloud", "While Live is on, every answer from Jarvis is spoken, typed questions too. The spoken text has no links, markdown or emoji") {
+                Switch(on: $voice.readAloud)
+            }
+            Rule()
+            Line("Test the voice", "Says one sentence. Nothing to hear? “Show voice log” says which speaker and microphone it used") {
+                HStack(spacing: Theme.Space.xs) {
+                    Pill("Test voice") { VoiceBridge.shared.testVoice() }
+                    Pill("Show voice log") { VoiceLog.reveal() }
+                }
             }
             Rule()
             Line("Follow-ups without his name", "After “Jarvis …” or an answer he keeps listening this long. Sentences that aren't for him are ignored") {

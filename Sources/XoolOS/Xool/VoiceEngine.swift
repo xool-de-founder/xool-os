@@ -26,6 +26,8 @@ enum VoiceEvent {
     case bargeIn
     /// What you said; `kind` is the situation ("frage", "befehl", …) for a bridge phrase.
     case transcript(String, Heard)
+    /// What you have said so far in the sentence that is still going (live text).
+    case partial(String)
     case speaking(Bool)
     /// Nothing is being said any more.
     case idle
@@ -125,16 +127,20 @@ final class SidecarEngine: VoiceEngine {
         stderr.fileHandleForReading.readabilityHandler = { handle in
             let data = handle.availableData
             guard !data.isEmpty else { handle.readabilityHandler = nil; return }
-            if Store.testing, let text = String(data: data, encoding: .utf8) { FileHandle.standardError.write(Data(("voice: " + text).utf8)) }
+            guard let text = String(data: data, encoding: .utf8) else { return }
+            if Store.testing { FileHandle.standardError.write(Data(("voice: " + text).utf8)) }
+            for line in text.split(separator: "\n") where !line.isEmpty { VoiceBridge.log("sidecar: \(line)") }
         }
         process.terminationHandler = { [weak self] done in
             Task { @MainActor in
                 guard let self, self.process === done else { return }
                 self.process = nil
                 self.input = nil
+                VoiceBridge.log("the sidecar ended with code \(done.terminationStatus)")
                 self.onEvent?(.error("The voice stopped (code \(done.terminationStatus)). Press the key again to restart it.", mic: false, fatal: true))
             }
         }
+        VoiceBridge.log("starting the sidecar: \(Self.python.path) \(args.joined(separator: " "))")
         try process.run()
         self.process = process
         self.input = stdin.fileHandleForWriting
@@ -161,7 +167,10 @@ final class SidecarEngine: VoiceEngine {
             carry = Data(carry[(newline + 1)...])
             guard let json = try? JSONSerialization.jsonObject(with: line) as? [String: Any], let ev = json["ev"] as? String else { continue }
             switch ev {
-            case "ready": onEvent?(.ready(json["tts"] as? String ?? ""))
+            case "ready":
+                VoiceBridge.log("sidecar ready: voice \(json["tts"] as? String ?? "?"), speaker \(json["output"] as? String ?? "?"), microphone \(json["input"] as? String ?? "?")")
+                onEvent?(.ready(json["tts"] as? String ?? ""))
+            case "partial": onEvent?(.partial(json["text"] as? String ?? ""))
             case "loading": onEvent?(.loading(json["what"] as? String ?? ""))
             case "speech_start": onEvent?(.speechStart)
             case "transcript":

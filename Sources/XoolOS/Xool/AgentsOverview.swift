@@ -85,6 +85,7 @@ struct AgentsOverview: View {
             }
             .accessibilityLabel("\(jarvis.name), chief agent. \(last?.lastLine ?? "No messages yet")")
             VoiceSetupCard()
+            VoiceTools()
             // Talk to him: the waveform opens a conversation (microphone open, he answers aloud);
             // or type and press Return.
             HStack(spacing: Theme.Space.xs) {

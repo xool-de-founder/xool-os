@@ -51,6 +51,7 @@ struct ThreadView: View {
                     .font(Theme.caption).foregroundStyle(Theme.textMuted).lineLimit(1)
             }
             Spacer(minLength: 0)
+            if let thread, SidecarEngine.installed { LiveSwitch(thread: thread.id) }
             XoolIconButton(symbol: "minus", label: "Minimize thread") {
                 withAnimation(Theme.motion(Theme.grow)) { ui.minimized = true }
             }
@@ -103,7 +104,7 @@ struct ThreadView: View {
                 Spacer()
                 Text("Ask \(agent.name) something").font(Theme.heading).foregroundStyle(Theme.text)
                 ForEach(starters(agent), id: \.self) { text in
-                    XoolButton(action: { if text.hasPrefix("/") { draft = text + " "; typing = true } else { runtime.send(text, in: thread.id) } }) {
+                    XoolButton(action: { if text.hasPrefix("/") { draft = text + " "; typing = true } else { voice.typed(text, in: thread.id) } }) {
                         Text(text).font(Theme.body).foregroundStyle(Theme.text)
                             .padding(.horizontal, Theme.Space.m).frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -119,14 +120,34 @@ struct ThreadView: View {
                         ForEach(thread.messages) { message in
                             bubble(message, agent).id(message.id)
                         }
+                        liveBubble(thread)
                     }
                     .padding(Theme.Space.m)
                 }
                 .onChange(of: thread.messages.last?.text) { _, _ in
                     if let last = thread.messages.last { proxy.scrollTo(last.id, anchor: .bottom) }
                 }
+                .onChange(of: voice.partial) { _, _ in proxy.scrollTo("live-bubble", anchor: .bottom) }
+                .onChange(of: voice.hearing) { _, _ in proxy.scrollTo("live-bubble", anchor: .bottom) }
                 .onAppear { if let last = thread.messages.last { proxy.scrollTo(last.id, anchor: .bottom) } }
             }
+        }
+    }
+
+    /// What you are saying right now, as you say it: it becomes your message at the end of the sentence.
+    @ViewBuilder
+    private func liveBubble(_ thread: ChatThread) -> some View {
+        if voice.isLive(thread.id), voice.hearing || !(voice.partial ?? "").isEmpty {
+            let words = voice.partial ?? ""
+            HStack(spacing: 6) {
+                Image(systemName: "waveform").font(.system(size: 11)).foregroundStyle(Theme.focus)
+                Text(words.isEmpty ? "…" : words).font(Theme.body).foregroundStyle(Theme.textMuted)
+            }
+            .padding(.horizontal, Theme.Space.m).padding(.vertical, Theme.Space.s)
+            .background(RoundedRectangle(cornerRadius: Theme.Radius.row, style: .continuous).strokeBorder(Theme.focus.opacity(0.6), style: StrokeStyle(lineWidth: 1, dash: [3, 3])))
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .id("live-bubble")
+            .accessibilityLabel("You are saying: \(words)")
         }
     }
 
@@ -235,7 +256,7 @@ struct ThreadView: View {
                     StepLog(steps: steps, color: agent.color)
                 }
                 if !message.text.isEmpty {
-                    BrainText(text: message.text).font(Theme.body).foregroundStyle(Theme.text).textSelection(.enabled)
+                    ChatText(text: message.text, noEmoji: agent.isMain).font(Theme.body).foregroundStyle(Theme.text).textSelection(.enabled)
                 } else if message.failed == nil, message.steps?.isEmpty != false {
                     Text("…").font(Theme.body).foregroundStyle(Theme.textMuted)
                 }
@@ -285,16 +306,17 @@ struct ThreadView: View {
 
     // MARK: voice
 
-    /// Dictation into the field: click, speak, click again (Esc cancels). The
-    /// same waveform as the address field. Talking to the agent itself is
-    /// still holding `fn`; right-click: hands-free, where you just talk.
+    /// Live: the waveform turns the open microphone on and off (it no longer dictates into the field). What you say
+    /// shows up above as it is spoken and is sent at the end of the sentence.
+    @ViewBuilder
     private func micButton(_ thread: ChatThread, _ agent: Agent) -> some View {
-        DictationButton(deliver: { text in
-            draft = draft.isEmpty ? text : draft + (draft.hasSuffix(" ") ? "" : " ") + text
-            typing = true
-        })
-        .contextMenu {
-            Button(voice.handsFree ? "Stop hands-free" : "Talk hands-free") { voice.toggleHandsFree() }
+        if SidecarEngine.installed {
+            LiveButton(thread: thread.id)
+        } else {
+            DictationButton(deliver: { text in
+                draft = draft.isEmpty ? text : draft + (draft.hasSuffix(" ") ? "" : " ") + text
+                typing = true
+            })
         }
     }
 
@@ -330,7 +352,7 @@ struct ThreadView: View {
             HStack(spacing: Theme.Space.s) {
                 Image(systemName: voice.state == .speaking ? "speaker.wave.2" : voice.state == .listening ? "waveform" : "ellipsis")
                     .font(.system(size: 11)).foregroundStyle(agent.color.solid)
-                Text(voice.state == .listening ? "Listening…" : voice.state == .speaking ? "Speaking. Talk or press a key to interrupt" : "Thinking…")
+                Text(voice.state == .listening ? (voice.conversing ? "Live. Just talk" : "Listening…") : voice.state == .speaking ? "Speaking. Talk or press a key to interrupt" : "Thinking…")
                     .font(Theme.small).foregroundStyle(Theme.textMuted)
                 Spacer(minLength: 0)
             }
@@ -344,7 +366,7 @@ struct ThreadView: View {
         let text = draft
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         draft = ""
-        runtime.send(text, in: thread.id)
+        voice.typed(text, in: thread.id)
     }
 }
 

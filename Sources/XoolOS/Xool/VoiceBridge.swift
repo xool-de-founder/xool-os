@@ -30,6 +30,8 @@ final class VoiceBridge: ObservableObject {
     static let sessionKey = "xool.voice.session"
     static let pauseKey = "xool.voice.pause"
     static let wakeKey = "xool.voice.wake"
+    static let readAloudKey = "xool.voice.readAloud"
+    static let autoLiveKey = "xool.voice.autoLive"
 
     /// How long a quiet moment ends your sentence, in seconds.
     static var pause: Double { let v = Store.settings.double(forKey: pauseKey); return v > 0 ? v : 0.5 }
@@ -67,8 +69,24 @@ final class VoiceBridge: ObservableObject {
     }
     /// The ears are loaded and warm.
     @Published private(set) var warm = false
-    /// A conversation with Jarvis is open (the microphone stays open).
+    /// Live: the microphone stays open, what you say shows up in the thread as you speak and goes to the agent at
+    /// the end of the sentence (also called the conversation).
     @Published private(set) var conversing = false
+    /// What you have said so far in the sentence that is still going (the live bubble in the thread).
+    @Published private(set) var partial: String?
+    /// You are talking right now (the live bubble shows before the first words are understood).
+    @Published private(set) var hearing = false
+    /// Every answer is read aloud while Live is on (typed questions too).
+    @Published var readAloud: Bool {
+        didSet { Store.settings.set(readAloud, forKey: Self.readAloudKey) }
+    }
+    /// Opening Jarvis' thread starts Live by itself.
+    @Published var autoLive: Bool {
+        didSet { Store.settings.set(autoLive, forKey: Self.autoLiveKey); syncLive() }
+    }
+    private var liveStarting = false
+    /// Live was ended by hand: it doesn't start again until Jarvis' thread is opened anew.
+    private var userStoppedLive = false
 
     private var engine: VoiceEngine?
     private let keys = PushToTalkKey()
@@ -99,10 +117,15 @@ final class VoiceBridge: ObservableObject {
         sessionSeconds = Store.settings.object(forKey: Self.sessionKey) as? Double ?? 20
         pauseSeconds = Self.pause
         wakeWord = Store.settings.bool(forKey: Self.wakeKey)
+        readAloud = Store.settings.object(forKey: Self.readAloudKey) as? Bool ?? true
+        autoLive = Store.settings.object(forKey: Self.autoLiveKey) as? Bool ?? true
         keys.kind = key
         keys.onChange = { [weak self] down in self?.pressed(down) }
         AgentStore.shared.$threads.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.pump() }.store(in: &cancellables)
         ChatRuntime.shared.$thinking.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.pump() }.store(in: &cancellables)
+        // Live follows Jarvis' thread: open it and he listens, leave it and the microphone closes.
+        let ui = XoolUI.shared
+        ui.$front.combineLatest(ui.$minimized).receive(on: DispatchQueue.main).sink { [weak self] _ in self?.syncLive() }.store(in: &cancellables)
     }
 
     /// Starts watching the key and, if the better voice is set up, the sidecar: it
@@ -223,7 +246,9 @@ final class VoiceBridge: ObservableObject {
 
     private func denied() {
         holding = false
-        notice = VoiceNotice(text: "Xool OS can't hear you: the microphone is off for it.",
+        liveStarting = false
+        Self.log("microphone: not allowed for Xool OS")
+        notice = VoiceNotice(text: "Xool OS can't hear you: the microphone is off for it. After an update macOS asks again; switch it on under Privacy & Security › Microphone.",
                              settings: URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"))
     }
 
@@ -383,16 +408,11 @@ final class VoiceBridge: ObservableObject {
         }
     }
 
-    /// Conversation mode with Jarvis: the microphone stays open, a pause ends your sentence, you talk over
-    /// him to stop him, and for a while after each answer he needs no name. Without the better voice
-    /// it listens once, until you press again.
+    /// Live with Jarvis (⌥⌘J pressed briefly, the waveform in his office, the menu bar): the microphone stays open,
+    /// a pause ends your sentence, you talk over him to stop him, and for a while after each answer he needs no
+    /// name. Without the better voice it listens once, until you press again.
     func toggleConversation() {
-        if handsFree || conversing {
-            conversing = false
-            if handsFree { toggleHandsFree() }
-            sessionUntil = .distantPast
-            return
-        }
+        if handsFree || conversing { userStoppedLive = true; endLive(); return }
         guard let engine = ensureEngine() else { return }
         guard engine.handsFree else {
             if latched || holding { latched = false; pressed(false) } else {
@@ -402,10 +422,83 @@ final class VoiceBridge: ObservableObject {
             return
         }
         forcedJarvis = true
-        conversing = true
-        toggleHandsFree()
+        let thread = pickThread()
         forcedJarvis = false
-        if !handsFree { conversing = false } else { openSession() }
+        guard let thread else { return }
+        userStoppedLive = false
+        startLive(in: thread)
+    }
+
+    /// The Live button of a thread: on and off, for that thread's agent.
+    func toggleLive(in thread: UUID) {
+        if conversing || handsFree { userStoppedLive = true; endLive(); return }
+        userStoppedLive = false
+        startLive(in: thread)
+    }
+
+    /// Whether Live is on for this thread.
+    func isLive(_ thread: UUID) -> Bool { (conversing || handsFree) && target == thread }
+
+    func startLive(in thread: UUID) {
+        guard !conversing, !handsFree, !liveStarting else { return }
+        guard let engine = ensureEngine() else { return }
+        guard engine.handsFree else {
+            notice = VoiceNotice(text: "Live needs the better voice (Whisper and Piper).", setup: true)
+            return
+        }
+        notice = nil
+        target = thread
+        liveStarting = true
+        withMicrophone { [weak self] in
+            guard let self, self.liveStarting else { return }
+            self.liveStarting = false
+            self.handsFree = true
+            self.conversing = true
+            self.state = .listening
+            self.partial = nil
+            self.hearing = false
+            engine.listen(.vad, bargeIn: self.bargeIn)
+            self.openSession()
+            Self.log("live on (\(AgentStore.shared.thread(thread).flatMap { AgentStore.shared.agent($0.agentID)?.name } ?? "?"))")
+        }
+    }
+
+    func endLive() {
+        liveStarting = false
+        guard conversing || handsFree else { return }
+        conversing = false
+        handsFree = false
+        partial = nil
+        hearing = false
+        sessionUntil = .distantPast
+        engine?.listen(.off, bargeIn: bargeIn)
+        interrupt()
+        state = .idle
+        if let target { ChatRuntime.shared.setActivity(target, .idle) }
+        Self.log("live off")
+    }
+
+    /// Jarvis' thread in front → Live starts (unless you ended it yourself); any other view → it ends.
+    private func syncLive() {
+        if getenv("XOOL_LIVE_AUTO") == nil, Store.testing || getenv("XOOL_PROFILE") != nil { return }
+        let ui = XoolUI.shared, store = AgentStore.shared
+        let front = ui.minimized ? nil : ui.front
+        let onJarvis = front.flatMap { store.thread($0) }?.agentID == store.jarvis.id
+        if let front, onJarvis {
+            if autoLive, !conversing, !handsFree, !userStoppedLive, !dictating, !holding, SidecarEngine.installed { startLive(in: front) }
+        } else {
+            userStoppedLive = false
+            if (conversing || handsFree) && target != front { endLive() }
+        }
+    }
+
+    /// The Test voice button: one sentence, aloud.
+    func testVoice() {
+        guard let engine = ensureEngine() else { return }
+        Self.log("test voice (\(engineName))")
+        interrupt()
+        engine.say(Self.language.hasPrefix("de") ? "Hallo, hier ist Jarvis. Wenn du mich hörst, funktioniert meine Stimme."
+                   : "Hello, this is Jarvis. If you can hear me, my voice works.", first: true)
     }
 
     // MARK: who is meant
@@ -446,7 +539,11 @@ final class VoiceBridge: ObservableObject {
             openSession()
             Self.log("wake word heard")
         case .loading(let what): loading = what == "ears" ? "Getting the ears ready. The first time this downloads about 1.5 GB." : nil
+        case .partial(let text):
+            if conversing || handsFree { partial = text; hearing = true }
         case .speechStart:
+            partial = nil
+            hearing = true
             // Hands-free: you started talking, to the agent in front.
             if handsFree, !holding {
                 if conversing, let thread = target { ChatRuntime.shared.setActivity(thread, .listening) }
@@ -455,6 +552,7 @@ final class VoiceBridge: ObservableObject {
                 lastActivity = Date()
             }
         case .bargeIn:
+            partial = nil
             if let s = session { ChatRuntime.shared.stop(s.thread) }
             session = nil
             state = .listening
@@ -473,7 +571,7 @@ final class VoiceBridge: ObservableObject {
             notice = VoiceNotice(text: text, settings: mic ? URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") : nil,
                                  setup: fatal && !SidecarEngine.installed)
             if fatal {
-                engine = nil; state = .idle; holding = false; handsFree = false; conversing = false; warm = false
+                engine = nil; state = .idle; holding = false; handsFree = false; conversing = false; warm = false; partial = nil; hearing = false
                 notice = nil
                 scheduleRestart()
             }
@@ -484,6 +582,8 @@ final class VoiceBridge: ObservableObject {
     /// meant for Jarvis (his name, an open session, or the small model says so).
     private func heard(_ raw: String, info given: Heard) {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        partial = nil
+        hearing = false
         // The Mac's own recognition brings no judgement: make the instant one here.
         let info = given.route.isEmpty && !text.isEmpty ? QuickJudge.judge(text, name: AgentStore.shared.jarvis.name) : given
         if discardNext { discardNext = false; state = handsFree ? .listening : .idle; return }
@@ -522,7 +622,7 @@ final class VoiceBridge: ObservableObject {
     }
 
     /// The sentence is for Jarvis: bridge phrase, then the answer, read aloud as it is written.
-    private func accept(_ text: String, _ info: Heard, _ thread: UUID) {
+    private func accept(_ text: String, _ info: Heard, _ thread: UUID, bridging: Bool = true) {
         lastActivity = Date()
         openSession()
         let now = Date()
@@ -543,6 +643,7 @@ final class VoiceBridge: ObservableObject {
         // The bridge phrase: at once when the answer will take a while (tools, thinking); a moment's grace
         // when the quick model usually has its first sentence ready by then.
         let id = last.id
+        guard bridging else { return }
         let quick = (info.route.isEmpty || info.route == "wissen") && firstSentenceAverage > 0 && firstSentenceAverage < 0.6
         Task { @MainActor [weak self] in
             if quick { try? await Task.sleep(nanoseconds: 250_000_000) }
@@ -559,6 +660,21 @@ final class VoiceBridge: ObservableObject {
                 self.engine?.bridge("warten")
             }
         }
+    }
+
+    /// A message typed to an agent. With Live on (and "Read replies aloud") the answer is spoken too: sentence by
+    /// sentence, without markdown, as for a spoken question.
+    func typed(_ text: String, in thread: UUID) {
+        let chat = ChatRuntime.shared
+        let isJarvis = AgentStore.shared.thread(thread)?.agentID == AgentStore.shared.jarvis.id
+        guard readAloud, isJarvis, conversing || handsFree, engine != nil, !chat.thinking.contains(thread) else {
+            chat.send(text, in: thread)
+            return
+        }
+        interrupt()
+        target = thread
+        Self.log("typed message, the answer will be spoken")
+        accept(text.trimmingCharacters(in: .whitespacesAndNewlines), Heard(), thread, bridging: false)
     }
 
     /// How a spoken answer is written: for the ear, in the user's language.
@@ -662,13 +778,8 @@ final class VoiceBridge: ObservableObject {
 
     // MARK: tests
 
-    /// Test and profile runs: a line for XOOL_VOICE_LOG, to see which entry started the voice.
-    static func log(_ line: String) {
-        guard Store.testing || getenv("XOOL_PROFILE") != nil, let path = getenv("XOOL_VOICE_LOG").map({ String(cString: $0) }) else { return }
-        let text = "\(Date().formatted(.iso8601)) \(line)\n"
-        if let handle = FileHandle(forWritingAtPath: path) { handle.seekToEndOfFile(); handle.write(Data(text.utf8)); try? handle.close() }
-        else { try? text.write(toFile: path, atomically: true, encoding: .utf8) }
-    }
+    /// A line for the voice log (~/Library/Logs/Xool/voice.log).
+    nonisolated static func log(_ line: String) { VoiceLog.write(line) }
 
     /// Test runs: a WAV file said to Jarvis, as the key, the menu bar and the Intent do.
     func feedJarvis(file: URL) {

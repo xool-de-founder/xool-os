@@ -64,9 +64,9 @@ struct ConversationButton: View {
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
         .xoolFocus(radius: Theme.Radius.row) { VoiceBridge.shared.toggleConversation() }
-        .accessibilityLabel(on ? "End the conversation with Jarvis" : "Talk to Jarvis")
-        .accessibilityHint("Starts a conversation: the microphone stays open")
-        .help(on ? "End the conversation" : "Talk to Jarvis. ⌥⌘J")
+        .accessibilityLabel(on ? "Turn Live off" : "Turn Live on")
+        .accessibilityHint("Live keeps the microphone open: you talk, he answers aloud")
+        .help(on ? "Live is on. Click to turn it off" : "Live: talk to Jarvis. ⌥⌘J")
     }
 }
 
@@ -123,5 +123,23 @@ struct VoiceSetupCard: View {
             .padding(Theme.Space.s)
             .background(RoundedRectangle(cornerRadius: Theme.Radius.row, style: .continuous).fill(Theme.surface))
         }
+    }
+}
+
+/// Under Jarvis' name: a sentence aloud to check the sound, and the log that says what the voice did.
+struct VoiceTools: View {
+    @ObservedObject private var voice = VoiceBridge.shared
+
+    var body: some View {
+        HStack(spacing: Theme.Space.xs) {
+            Pill("Test voice") { VoiceBridge.shared.testVoice() }
+            Pill("Show voice log") { VoiceLog.reveal() }
+            Spacer(minLength: 0)
+            if let note = voice.notice, let url = note.settings {
+                Pill("Open Settings", filled: true) { NSWorkspace.shared.open(url) }
+                    .help(note.text)
+            }
+        }
+        .accessibilityElement(children: .contain)
     }
 }

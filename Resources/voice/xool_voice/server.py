@@ -12,7 +12,7 @@ The app (VoiceBridge.swift) sends commands, one JSON object per line:
   {"cmd":"save_out","path":"out.wav"}    tests: what would have come out of the speakers (--record)
   {"cmd":"quit"}
 and gets events back, one per line:
-  ready{stt,tts,vad}  loading{what}  loaded{what}  warm{bridges}  status{state}  speech_start
+  ready{stt,tts,vad,output,input}  partial{text}  loading{what}  loaded{what}  warm{bridges}  status{state}  speech_start
   barge_in{ms_stop,ms_total}  transcript{text,kind,route,tools,named,ms_stt,ms_after_end}
   speaking{on}  idle  bridge{text,ms}  sound{kind,ms}  wake  error{text}
 
@@ -70,6 +70,9 @@ class _Spec:
 class Server:
     #: A pause this long starts transcribing early (see _Spec).
     SPEC_AFTER = 0.22
+    #: How often the live text is refreshed while you talk, and how much of the turn it reads (seconds).
+    PARTIAL_EVERY = 0.45
+    PARTIAL_MAX = 20.0
 
     def __init__(self, voice: str | None = None, whisper: str | None = None, speed: float = 1.05,
                  pause: float = 0.5, null_audio: bool = False, name: str = "Jarvis", language: str = "de",
@@ -103,6 +106,11 @@ class Server:
         self.t_stt_done = 0.0
         self.announced_first = True
         self.spec: _Spec | None = None
+        # Live text while you talk: every PARTIAL_EVERY seconds the speech so far is understood again.
+        self.turn_id = 0
+        self._partial_busy = False
+        self._partial_at = 0.0
+        self._partial_last = ""
         # Echo gate: how much of our own voice comes back in the microphone.
         self.echo_g = 0.25
         self._echo_cal: list[float] = []
@@ -143,8 +151,20 @@ class Server:
         threading.Thread(target=self._say_worker, daemon=True).start()
         threading.Thread(target=self._speaking_monitor, daemon=True).start()
         threading.Thread(target=self._announce_warm, daemon=True).start()
-        self.emit("ready", tts=self.tts.name, vad=vad_name, null_audio=self.null_audio)
+        self.emit("ready", tts=self.tts.name, vad=vad_name, null_audio=self.null_audio, **self._devices())
         threading.Thread(target=self._load_stt, daemon=True).start()
+
+    @staticmethod
+    def _devices() -> dict:
+        """Which speaker and microphone this process will use (for the voice log)."""
+        try:
+            import sounddevice as sd
+
+            out = sd.query_devices(sd.default.device[1])["name"] if sd.default.device[1] >= 0 else "none"
+            inp = sd.query_devices(sd.default.device[0])["name"] if sd.default.device[0] >= 0 else "none"
+            return {"output": out, "input": inp}
+        except Exception as e:  # pragma: no cover
+            return {"output": f"unknown ({e})", "input": "unknown"}
 
     def _announce_warm(self) -> None:
         self.fillers.ready.wait()
@@ -337,11 +357,18 @@ class Server:
         need, window = 5, 12  # a voice over ours: 5 of the last 12 chunks (0.4 s) clearly louder than the echo
         recent: deque = deque(maxlen=window)
         tail: deque = deque(maxlen=window)
+        dead = 0  # chunks in a row that are exactly zero: macOS hands a process without permission silence, not an error
         while self.mic_run.is_set() and self.mic is not None:
             try:
                 chunk = self.mic.chunks.get(timeout=0.2)
             except queue.Empty:
                 continue
+            if not self.fake_mic:
+                dead = 0 if chunk.any() else dead + 1
+                if dead == round(2.0 / CHUNK_SEC):
+                    self.log("microphone: only silence for 2 s")
+                    self.emit("error", text="The microphone only delivers silence. Allow Xool OS under Privacy & Security › "
+                                            "Microphone (after an update macOS asks again), then switch Live off and on.", mic=True)
             if self.ptt_down.is_set():
                 self.ptt_audio.append(chunk)
                 continue
@@ -385,15 +412,49 @@ class Server:
             ev = self.detector.feed(prob, chunk)
             if ev is None:
                 self._early_transcribe()  # (not on "end": the detector has just been reset)
+                self._partial_tick()
                 continue
             if ev.kind == "start":
+                self.turn_id += 1
+                self._partial_last = ""
                 self.emit("speech_start")
                 self.emit("status", state="hearing")
             elif ev.kind == "end":
+                self.turn_id += 1
                 self.t_end = time.monotonic()
                 spec, self.spec = self.spec, None
                 self.emit("status", state="thinking")
                 threading.Thread(target=self._transcribe, args=(ev.audio, spec), daemon=True).start()
+
+    def _partial_tick(self) -> None:
+        """While you talk: understand what was said so far, about twice a second, and send it as `partial`."""
+        d = self.detector
+        now = time.monotonic()
+        if (not d.in_speech or self._partial_busy or self.stt is None or self.spec is not None
+                or now - self._partial_at < self.PARTIAL_EVERY or d.spoken_seconds < 0.6):
+            return
+        self._partial_busy = True
+        self._partial_at = now
+        turn = self.turn_id
+        audio = d.audio_so_far().copy()[-int(self.PARTIAL_MAX * SAMPLE_RATE):]
+
+        def work():
+            try:
+                if self.stt_lock.acquire(timeout=0.05):
+                    self.stt_lock.release()
+                else:
+                    return  # the final transcription is running: it is the answer now
+                text = self._stt(audio).strip()
+                if text and turn == self.turn_id and text != self._partial_last and self.mode == "vad":
+                    self._partial_last = text
+                    self.emit("partial", text=text)
+            except Exception:
+                pass
+            finally:
+                self._partial_busy = False
+                self._partial_at = time.monotonic()
+
+        threading.Thread(target=work, daemon=True).start()
 
     def _early_transcribe(self) -> None:
         """In the first moments of a pause, start understanding what was said so far."""
